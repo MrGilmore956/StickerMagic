@@ -1,0 +1,7 @@
+{
+  "name": "StickerMagic AI",
+  "description": "Transform your GIFs and images into clean, text-free Slack stickers using advanced Gemini AI. Remove text automatically or generate high-quality 4K stickers from scratch.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
