@@ -11,7 +11,7 @@ import {
     MessageCircle,
     Lightbulb,
 } from "lucide-react";
-import { removeTextMagic, askSizzle } from "../services/geminiService";
+import { removeTextMagic, askSaucy } from "../services/geminiService";
 import { reimagineAsSticker } from "../services/gifFrameAnalyzer";
 import { generateAnimation } from "../services/veoService";
 
@@ -61,8 +61,8 @@ export default function CreateTab() {
             try {
                 console.log('Requesting AI suggestion for', uploadedMedia.length, 'images');
                 const imageData = uploadedMedia.map(m => ({ base64: m.base64, mimeType: m.mimeType }));
-                console.log('Image data prepared, calling askSizzle...');
-                const suggestion = await askSizzle('', imageData, outputMode);
+                console.log('Image data prepared, calling askSaucy...');
+                const suggestion = await askSaucy('', imageData, outputMode);
                 console.log('AI suggestion received:', suggestion);
                 setAiSuggestion(suggestion);
             } catch (err: any) {
@@ -171,7 +171,7 @@ export default function CreateTab() {
 
         try {
             const imageData = uploadedMedia.map(m => ({ base64: m.base64, mimeType: m.mimeType }));
-            const suggestion = await askSizzle(prompt, imageData, outputMode);
+            const suggestion = await askSaucy(prompt, imageData, outputMode);
             setAiSuggestion(suggestion);
         } catch (err: any) {
             setError("Couldn't get AI suggestions. Try again!");
@@ -483,7 +483,7 @@ export default function CreateTab() {
                                     ) : (
                                         <MessageCircle className="w-4 h-4" />
                                     )}
-                                    {prompt.trim() ? "Refine My Idea" : "Ask Sizzle for Ideas"}
+                                    {prompt.trim() ? "Refine My Idea" : "Ask Saucy for Ideas"}
                                 </button>
                             </div>
 

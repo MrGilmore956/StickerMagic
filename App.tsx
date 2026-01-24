@@ -4,26 +4,35 @@ import {
   Sparkles,
   MessageCircle,
   Key,
-  ShieldAlert,
-  CheckCircle2,
   Zap,
   Info,
-  ExternalLink
+  ExternalLink,
+  LogIn,
+  LogOut,
+  User as UserIcon
 } from 'lucide-react';
+import { User } from 'firebase/auth';
 import { AppTab } from './types';
 import CreateTab from './components/CreateTab';
 import ChatBotTab from './components/ChatBotTab';
 import IntroPage from './components/IntroPage';
-import { getSaucyApiKey, saveSaucyApiKey } from './services/authService';
+import {
+  getSaucyApiKey,
+  saveSaucyApiKey,
+  signInWithGoogle,
+  signOut,
+  initAuthListener
+} from './services/authService';
 
 const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<AppTab>(AppTab.CREATE);
   const [keyStatus, setKeyStatus] = useState<'IDLE' | 'ACTIVE' | 'DEMO'>('IDLE');
   const [showManualInput, setShowManualInput] = useState(false);
   const [manualKey, setManualKey] = useState('');
+  const [user, setUser] = useState<User | null>(null);
+  const [authLoading, setAuthLoading] = useState(false);
 
   const [showIntro, setShowIntro] = useState(() => {
-    // Check if user has dismissed intro before
     const dismissed = localStorage.getItem('stickify_intro_dismissed');
     return dismissed !== 'true';
   });
@@ -44,6 +53,15 @@ const App: React.FC = () => {
     }
   };
 
+  // Initialize Firebase Auth listener
+  useEffect(() => {
+    const unsubscribe = initAuthListener((authUser) => {
+      setUser(authUser);
+      updateKeyStatus();
+    });
+    return () => unsubscribe();
+  }, []);
+
   useEffect(() => {
     updateKeyStatus();
     const interval = setInterval(updateKeyStatus, 3000);
@@ -53,7 +71,6 @@ const App: React.FC = () => {
   // Auto-prompt for API key when in demo mode and intro is dismissed
   useEffect(() => {
     if (!showIntro && keyStatus === 'DEMO') {
-      // Small delay to let the main UI render first
       const timer = setTimeout(() => {
         setShowManualInput(true);
       }, 500);
@@ -71,8 +88,8 @@ const App: React.FC = () => {
     }
   };
 
-  const saveKey = () => {
-    if (saveSaucyApiKey(manualKey)) {
+  const saveKey = async () => {
+    if (await saveSaucyApiKey(manualKey)) {
       setKeyStatus('ACTIVE');
       setShowManualInput(false);
     } else {
@@ -80,7 +97,17 @@ const App: React.FC = () => {
     }
   };
 
+  const handleSignIn = async () => {
+    setAuthLoading(true);
+    await signInWithGoogle();
+    setAuthLoading(false);
+  };
 
+  const handleSignOut = async () => {
+    setAuthLoading(true);
+    await signOut();
+    setAuthLoading(false);
+  };
 
   return (
     <>
@@ -109,6 +136,23 @@ const App: React.FC = () => {
                     <li>Copy the key (it starts with <span className="text-slate-200 font-mono">AIza...</span>) and paste it below.</li>
                   </ol>
                 </div>
+
+                {/* Sign-in prompt for persistence */}
+                {!user && (
+                  <div className="bg-blue-500/10 border border-blue-500/20 rounded-2xl p-4 mb-6">
+                    <p className="text-xs text-blue-300 mb-3">
+                      <strong>Pro tip:</strong> Sign in with Google to save your key across devices!
+                    </p>
+                    <button
+                      onClick={handleSignIn}
+                      disabled={authLoading}
+                      className="w-full flex items-center justify-center gap-2 py-3 bg-white text-slate-900 rounded-xl font-bold hover:bg-slate-100 transition-all disabled:opacity-50"
+                    >
+                      <LogIn size={18} />
+                      {authLoading ? 'Signing in...' : 'Sign in with Google'}
+                    </button>
+                  </div>
+                )}
 
                 <div className="relative group mb-6">
                   <input
@@ -139,21 +183,48 @@ const App: React.FC = () => {
           )}
 
           {/* Header */}
-          <header className="w-full max-w-5xl flex flex-col md:flex-row justify-between items-center mb-12 gap-6 px-6">
-            <div className="flex items-center gap-5 group cursor-default">
-              <div className="relative">
-                <div className="absolute inset-0 bg-red-500/20 blur-2xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-700"></div>
-                <img src="/saucy-logo.jpg" alt="Sizzle - Saucy Assistant" className="w-16 h-16 rounded-[1.25rem] shadow-2xl shadow-red-500/10 transition-all group-hover:scale-110 group-hover:rotate-3 duration-500 relative z-10 object-cover border border-white/10" />
-                <div className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 rounded-full border-[3px] border-black animate-pulse z-20"></div>
-              </div>
-              <div>
-                <h1 className="text-5xl font-black tracking-tighter bg-clip-text text-transparent bg-gradient-to-br from-white via-white to-red-400">
-                  Saucy
-                </h1>
-              </div>
-            </div>
+          <header className="w-full flex flex-row justify-between items-center mb-12 gap-6 px-6 py-4">
+            {/* Logo - Top Left */}
+            <a href="/" className="flex items-center group flex-shrink-0">
+              <img
+                src="/saucy-text-logo.png"
+                alt="Saucy AI"
+                className="h-16 md:h-20 w-auto transition-all group-hover:brightness-110 group-hover:scale-105 duration-300"
+              />
+            </a>
 
             <div className="flex items-center gap-4">
+              {/* User Account Section */}
+              {user ? (
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-800/50 rounded-full border border-slate-700">
+                    {user.photoURL ? (
+                      <img src={user.photoURL} alt={user.displayName || 'User'} className="w-6 h-6 rounded-full" />
+                    ) : (
+                      <UserIcon size={16} className="text-slate-400" />
+                    )}
+                    <span className="text-xs text-slate-300 font-medium max-w-[100px] truncate">
+                      {user.displayName || user.email?.split('@')[0]}
+                    </span>
+                  </div>
+                  <button
+                    onClick={handleSignOut}
+                    className="p-2 text-slate-500 hover:text-red-400 transition-colors"
+                    title="Sign Out"
+                  >
+                    <LogOut size={18} />
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={handleSignIn}
+                  disabled={authLoading}
+                  className="flex items-center gap-2 px-4 py-2 text-xs font-bold text-slate-400 hover:text-white transition-colors border border-slate-800 rounded-full hover:border-slate-600 disabled:opacity-50"
+                >
+                  <LogIn size={14} />
+                  <span>Sign In</span>
+                </button>
+              )}
 
               {keyStatus !== 'ACTIVE' && (
                 <>

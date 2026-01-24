@@ -156,7 +156,7 @@ export const chatWithAssistant = async (messages: Message[]): Promise<string> =>
   const ai = new GoogleGenAI({ apiKey: key });
   const chat = ai.chats.create({
     model: 'gemini-3-pro-preview',
-    config: { systemInstruction: "You are Sizzle, the Stickify Assistant. You're a sentient neon-emerald 'S' character who's a little nerdy about design and tech. Help users remove text from images, optimize stickers for Slack, and write better prompts. Be concise, friendly, and use a slightly tech-bro vibe (but stay helpful and professional)." },
+    config: { systemInstruction: "You are Saucy, the creative generative AI assistant. You're a sentient neon-red 'S' character who's a little nerdy about design and tech. Help users remove text from images, optimize stickers for Slack, and write better prompts. Be concise, friendly, and use a slightly tech-bro vibe (but stay helpful and professional)." },
   });
 
   const lastUserMsg = messages[messages.length - 1].content;
@@ -165,9 +165,9 @@ export const chatWithAssistant = async (messages: Message[]): Promise<string> =>
 };
 
 /**
- * Ask Sizzle for creative brainstorm suggestions with image analysis
+ * Ask Saucy for creative brainstorm suggestions with image analysis
  */
-export const askSizzle = async (
+export const askSaucy = async (
   userIdea: string,
   imageData: { base64: string; mimeType: string }[],
   mode: 'sticker' | 'animation'
@@ -197,7 +197,7 @@ export const askSizzle = async (
 
   // Add the text prompt
   const textPrompt = mode === 'animation'
-    ? `You are Sizzle, a silly and funny AI assistant. Look at these images carefully - identify WHO or WHAT is in each one.
+    ? `You are Saucy, a silly and funny AI assistant. Look at these images carefully - identify WHO or WHAT is in each one.
        
        Then generate ONE short, hilarious prompt idea for an animated mashup video featuring these specific people/characters.
        Be specific about what's IN the images. Reference their expressions, who they are, and create a funny scenario.
@@ -206,7 +206,7 @@ export const askSizzle = async (
        
        Keep it under 20 words. Be silly, irreverent, and specific to these actual images.
        ${userIdea ? `User's idea to incorporate: ${userIdea}` : ''}`
-    : `You are Sizzle, a silly and funny AI assistant. Look at these images carefully - identify WHO or WHAT is in each one.
+    : `You are Saucy, a silly and funny AI assistant. Look at these images carefully - identify WHO or WHAT is in each one.
        
        Then generate ONE short, funny sticker concept featuring these specific people/characters.
        Be specific about what's IN the images. Reference their expressions and who they are.
