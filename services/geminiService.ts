@@ -1,95 +1,139 @@
 
-import { GoogleGenAI, Type, GenerateContentResponse } from "@google/genai";
+import { GoogleGenAI } from "@google/genai";
 import { Message, StickerSize } from "../types";
+import { getStickifyApiKey } from "./authService";
+import { removeBackgroundML, removeBackgroundSimple } from "./backgroundRemover";
+
+/**
+ * SIMULATED Text Removal for Demo Mode
+ * This masks the bottom portion of the image where text usually resides
+ * to provide a visual demonstration without needing a real API call.
+ */
+const simulateTextRemoval = async (base64Data: string): Promise<string> => {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = img.width;
+      canvas.height = img.height;
+      const ctx = canvas.getContext('2d')!;
+      ctx.drawImage(img, 0, 0);
+
+      // Mask bottom 25% (typical text area)
+      const maskHeight = Math.floor(img.height * 0.25);
+      const maskY = img.height - maskHeight;
+
+      // Sample color from the middle to use as filler
+      const sample = ctx.getImageData(10, maskHeight, 1, 1).data;
+      ctx.fillStyle = `rgb(${sample[0]}, ${sample[1]}, ${sample[2]})`;
+      ctx.fillRect(0, maskY, img.width, maskHeight);
+
+      // Mask top right (typical watermark area)
+      ctx.fillRect(img.width - 150, 0, 150, 60);
+
+      resolve(canvas.toDataURL('image/png'));
+    };
+    img.src = base64Data;
+  });
+};
 
 export const removeTextMagic = async (base64Data: string, mimeType: string): Promise<string> => {
-  // Always use process.env.API_KEY directly for initialization as per guidelines
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const { key, isDemo } = await getStickifyApiKey();
 
-  // Extract base64 part if it's a data URL, otherwise use as is
-  const cleanBase64 = base64Data.includes(',') ? base64Data.split(',')[1] : base64Data;
-
-  if (!cleanBase64) {
-    throw new Error("Invalid image data provided.");
+  if (isDemo) {
+    console.log("Running in DEMO MODE - Simulating text removal...");
+    await new Promise(r => setTimeout(r, 1200));
+    return await simulateTextRemoval(base64Data);
   }
+
+  const ai = new GoogleGenAI({ apiKey: key });
+  const cleanBase64 = base64Data.includes(',') ? base64Data.split(',')[1] : base64Data;
 
   const response = await ai.models.generateContent({
     model: 'gemini-2.5-flash-image',
     contents: {
       parts: [
+        { inlineData: { data: cleanBase64, mimeType: mimeType || 'image/png' } },
         {
-          inlineData: {
-            data: cleanBase64,
-            mimeType: mimeType || 'image/png',
-          },
-        },
-        {
-          text: "Analyze this image/GIF and re-generate a high-quality, static version of it without any text, overlays, watermarks, or captions. The output should be a clean, vibrant sticker-style image with a transparent or simple background, perfectly optimized for a Slack emoji. Keep the core character or subject but remove every single piece of written text.",
+          text: "MANDATORY INSTRUCTION: Remove all written text, captions, watermarks, and logos. Re-create the background accurately where the text was. The final image must contain ZERO words or letters. Focus on keeping the main character/person. CRITICAL: Output must be PNG format with a fully transparent background (alpha channel). No grey, white, or colored backgrounds - only transparency."
         },
       ],
     },
   });
 
-  const candidates = response.candidates;
-  if (!candidates || candidates.length === 0) {
-    throw new Error("No candidates returned from the model.");
-  }
 
-  for (const part of candidates[0].content.parts) {
-    if (part.inlineData) {
-      return `data:image/png;base64,${part.inlineData.data}`;
+  const candidates = response.candidates;
+  if (candidates?.[0]?.content?.parts?.[0]?.inlineData) {
+    const base64Image = `data:image/png;base64,${candidates[0].content.parts[0].inlineData.data}`;
+
+    // Remove background to ensure transparency
+    try {
+      const transparentImage = await removeBackgroundML(base64Image);
+      return transparentImage;
+    } catch (err) {
+      console.warn("ML background removal failed, trying simple removal:", err);
+      try {
+        return await removeBackgroundSimple(base64Image);
+      } catch (err2) {
+        console.warn("All background removal failed, returning original:", err2);
+        return base64Image;
+      }
     }
   }
-
-  throw new Error("The model did not return a processed image part.");
+  throw new Error("Gemini produced an empty result. Try a clearer image.");
 };
 
 export const generateStickerFromPrompt = async (prompt: string, size: StickerSize): Promise<string> => {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const { key, isDemo } = await getStickifyApiKey();
 
+  if (isDemo) {
+    await new Promise(r => setTimeout(r, 2000));
+    return "https://images.unsplash.com/photo-1618331835717-801e976710b2?q=80&w=1000&auto=format&fit=crop";
+  }
+
+  const ai = new GoogleGenAI({ apiKey: key });
   const response = await ai.models.generateContent({
     model: 'gemini-3-pro-image-preview',
-    contents: {
-      parts: [
-        {
-          text: `Professional high-quality Slack sticker: ${prompt}. Isolated on a white or transparent-style neutral background, vibrant colors, clear bold outlines, sticker aesthetic, no text.`,
-        },
-      ],
-    },
-    config: {
-      imageConfig: {
-        aspectRatio: "1:1",
-        imageSize: size
-      }
-    },
+    contents: { parts: [{ text: `Professional high-detail sticker style: ${prompt}, PNG with fully transparent background (alpha channel), no text, no grey background, pure transparency.` }] },
+    config: { imageConfig: { aspectRatio: "1:1", imageSize: size } },
   });
 
-  const candidates = response.candidates;
-  if (!candidates || candidates.length === 0) {
-    throw new Error("No generation candidates returned.");
-  }
 
-  for (const part of candidates[0].content.parts) {
-    if (part.inlineData) {
-      return `data:image/png;base64,${part.inlineData.data}`;
+  if (response.candidates?.[0]?.content?.parts?.[0]?.inlineData) {
+    const base64Image = `data:image/png;base64,${response.candidates[0].content.parts[0].inlineData.data}`;
+
+    // Remove background to ensure transparency
+    try {
+      const transparentImage = await removeBackgroundML(base64Image);
+      return transparentImage;
+    } catch (err) {
+      console.warn("ML background removal failed, trying simple removal:", err);
+      try {
+        return await removeBackgroundSimple(base64Image);
+      } catch (err2) {
+        console.warn("All background removal failed, returning original:", err2);
+        return base64Image;
+      }
     }
   }
-
-  throw new Error("Failed to generate sticker image.");
+  throw new Error("Failed to generate sticker.");
 };
 
 export const chatWithAssistant = async (messages: Message[]): Promise<string> => {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const { key, isDemo } = await getStickifyApiKey();
 
+  if (isDemo) {
+    return "I'm currently in DEMO MODE. I can show you how the UI works, but for real AI text removal and sticker generation, you'll need to click 'ACTIVATE PRO' and enter your Gemini API key.";
+  }
+
+  const ai = new GoogleGenAI({ apiKey: key });
   const chat = ai.chats.create({
     model: 'gemini-3-pro-preview',
-    config: {
-      systemInstruction: 'You are the Stickify Assistant. You help users remove text from images or animated GIFs to make stickers, or help them write better prompts for generating brand new high-quality stickers. Be concise, friendly, and expert in design and Slack emoji best practices.',
-    },
+    config: { systemInstruction: "You are Sticko, the Stickify Assistant. You're a sentient neon-emerald 'S' character who's a little nerdy about design and tech. Help users remove text from images, optimize stickers for Slack, and write better prompts. Be concise, friendly, and use a slightly tech-bro vibe (but stay helpful and professional)." },
   });
 
   const lastUserMsg = messages[messages.length - 1].content;
   const response = await chat.sendMessage({ message: lastUserMsg });
-
-  return response.text || "I'm sorry, I couldn't process that.";
+  return response.text || "I'm sorry, I encountered an error.";
 };

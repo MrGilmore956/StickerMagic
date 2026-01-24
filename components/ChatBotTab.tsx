@@ -1,12 +1,12 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, User, Sparkles, Loader2, Info } from 'lucide-react';
+import { Send, User, Sparkles, Loader2 } from 'lucide-react';
 import { chatWithAssistant } from '../services/geminiService';
 import { Message } from '../types';
 
 const ChatBotTab: React.FC = () => {
   const [messages, setMessages] = useState<Message[]>([
-    { role: 'model', content: "Hey! I'm your Stickify Assistant. I can help you remove text from images or animated GIFs, or help you write perfect prompts for generating new stickers. What can I help with?" }
+    { role: 'model', content: "Hey! I'm Sticko, your Stickify sidekick. I'm here to help you scrub text from GIFs, optimize your stickers for Slack, or brainstorm prompts that'll make your team jealous. What can I help you stick together today?" }
   ]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -31,51 +31,57 @@ const ChatBotTab: React.FC = () => {
       const response = await chatWithAssistant([...messages, userMsg]);
       setMessages(prev => [...prev, { role: 'model', content: response }]);
     } catch (err) {
-      setMessages(prev => [...prev, { role: 'model', content: "Oops, I had trouble connecting. Please try again." }]);
+      setMessages(prev => [...prev, { role: 'model', content: "Whoa, hit a snag there! Mind trying that again?" }]);
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <div className="max-w-2xl mx-auto bg-white rounded-3xl shadow-xl border border-slate-100 flex flex-col h-[600px] overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-500">
+    <div className="max-w-3xl mx-auto bg-gradient-to-br from-white via-green-50 to-emerald-50 rounded-[2.5rem] shadow-2xl border border-green-200/50 flex flex-col h-[650px] overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-500">
       {/* Chat Header */}
-      <div className="p-4 border-b border-slate-100 bg-slate-50 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="bg-gradient-to-br from-teal-500 to-cyan-600 p-2 rounded-xl">
-            <Sparkles className="text-white w-5 h-5" />
+      <div className="p-6 border-b border-green-200 bg-white/30 flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <div className="relative">
+            <div className="absolute inset-0 bg-green-400/20 blur-xl rounded-full"></div>
+            <img
+              src="/sticko-logo.png"
+              alt="Sticko"
+              className="w-14 h-14 rounded-2xl border-2 border-green-400/30 object-cover relative z-10"
+            />
+            <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-slate-900 z-20"></div>
           </div>
           <div>
-            <h3 className="font-bold text-slate-800">Stickify Assistant</h3>
+            <h3 className="font-black text-xl text-slate-100 tracking-tight">Sticko <span className="text-green-400 text-xs font-black ml-1 uppercase bg-green-400/10 px-2 py-0.5 rounded-md border border-green-400/20">PRO</span></h3>
             <div className="flex items-center gap-1.5">
-              <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Powered by Gemini 3 Pro</span>
+              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Stickify Expert</span>
             </div>
           </div>
         </div>
-        <button className="text-slate-400 hover:text-teal-600 transition-colors">
-          <Info size={18} />
-        </button>
       </div>
 
       {/* Messages */}
       <div
         ref={scrollRef}
-        className="flex-1 overflow-y-auto p-6 space-y-6 scroll-smooth"
+        className="flex-1 overflow-y-auto p-8 space-y-8 scroll-smooth bg-white/20"
       >
         {messages.map((msg, idx) => (
           <div
             key={idx}
             className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'} animate-in fade-in slide-in-from-bottom-2 duration-300`}
           >
-            <div className={`flex gap-3 max-w-[85%] ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}>
-              <div className={`shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${msg.role === 'user' ? 'bg-slate-200' : 'bg-teal-600'
+            <div className={`flex gap-4 max-w-[85%] ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}>
+              <div className={`shrink-0 w-10 h-10 rounded-xl flex items-center justify-center overflow-hidden ${msg.role === 'user' ? 'bg-green-100 border border-green-300' : 'bg-green-500/10 border-2 border-green-500/30'
                 }`}>
-                {msg.role === 'user' ? <User size={16} className="text-slate-600" /> : <Sparkles size={16} className="text-white" />}
+                {msg.role === 'user' ? (
+                  <User size={20} className="text-slate-600" />
+                ) : (
+                  <img src="/sticko-logo.png" alt="Sticko" className="w-full h-full object-cover" />
+                )}
               </div>
-              <div className={`p-4 rounded-2xl text-sm leading-relaxed ${msg.role === 'user'
-                  ? 'bg-slate-100 text-slate-800 rounded-tr-none'
-                  : 'bg-white border border-slate-100 shadow-sm text-slate-800 rounded-tl-none'
+              <div className={`p-5 rounded-3xl text-[15px] leading-relaxed shadow-lg ${msg.role === 'user'
+                ? 'bg-green-600 text-white rounded-tr-none shadow-green-900/20'
+                : 'bg-white/80 border border-green-200 text-slate-800 rounded-tl-none'
                 }`}>
                 {msg.content}
               </div>
@@ -84,30 +90,34 @@ const ChatBotTab: React.FC = () => {
         ))}
         {isLoading && (
           <div className="flex justify-start">
-            <div className="bg-slate-50 border border-slate-100 p-4 rounded-2xl rounded-tl-none flex items-center gap-2">
-              <Loader2 className="w-4 h-4 animate-spin text-teal-600" />
-              <span className="text-xs font-bold text-slate-400 uppercase">Gemini is thinking...</span>
+            <div className="bg-white/80 border border-green-200 p-5 rounded-3xl rounded-tl-none flex items-center gap-3">
+              <div className="flex space-x-1">
+                <div className="w-2 h-2 bg-green-400 rounded-full animate-bounce [animation-delay:-0.3s]"></div>
+                <div className="w-2 h-2 bg-green-400 rounded-full animate-bounce [animation-delay:-0.15s]"></div>
+                <div className="w-2 h-2 bg-green-400 rounded-full animate-bounce"></div>
+              </div>
+              <span className="text-xs font-black text-slate-600 uppercase tracking-widest">Sticko is thinking...</span>
             </div>
           </div>
         )}
       </div>
 
       {/* Input */}
-      <form onSubmit={handleSend} className="p-4 border-t border-slate-100 bg-slate-50">
+      <form onSubmit={handleSend} className="p-6 border-t border-green-200 bg-white/30">
         <div className="relative flex items-center">
           <input
             type="text"
-            className="w-full pl-5 pr-14 py-4 rounded-2xl border border-slate-200 focus:ring-2 focus:ring-teal-500 outline-none transition-all shadow-inner"
-            placeholder="Ask me anything about stickers..."
+            className="w-full pl-6 pr-16 py-5 rounded-[1.5rem] border border-green-200 bg-white text-slate-800 focus:ring-2 focus:ring-green-400/50 outline-none transition-all shadow-inner placeholder:text-slate-400 font-medium"
+            placeholder="Ask Sticko anything..."
             value={input}
             onChange={(e) => setInput(e.target.value)}
           />
           <button
             type="submit"
             disabled={!input.trim() || isLoading}
-            className="absolute right-2 p-2.5 bg-teal-600 text-white rounded-xl hover:bg-teal-700 disabled:opacity-50 transition-all shadow-md"
+            className="absolute right-2.5 p-3.5 bg-green-500 text-white rounded-2xl hover:bg-green-400 disabled:opacity-30 transition-all shadow-xl active:scale-95"
           >
-            <Send size={18} />
+            <Send size={20} className="font-bold" />
           </button>
         </div>
       </form>

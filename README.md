@@ -19,7 +19,9 @@ AI-powered sticker creator that removes text from images and animated GIFs, or g
    ```bash
    npm install
    ```
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
+2. **Set your API Key**:
+   - Open `.env.local`
+   - Replace `PLACEHOLDER_API_KEY` with your **actual** Gemini API key from [aistudio.google.com/app/apikey](https://aistudio.google.com/app/apikey)
 3. Run the app:
    ```bash
    npm run dev

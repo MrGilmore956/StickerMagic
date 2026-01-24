@@ -150,9 +150,9 @@ const RemoveTextTab: React.FC = () => {
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <div className="bg-white p-6 rounded-3xl shadow-xl border border-slate-100 flex flex-col">
-        <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
-          <Upload className="text-teal-600 w-5 h-5" />
+      <div className="bg-gradient-to-br from-white via-green-50 to-emerald-50 p-6 rounded-3xl shadow-2xl border border-green-200/50 flex flex-col">
+        <h2 className="text-xl font-bold mb-4 flex items-center gap-2 text-slate-900">
+          <Upload className="text-green-500 w-5 h-5" />
           Source Media
         </h2>
 
@@ -161,13 +161,13 @@ const RemoveTextTab: React.FC = () => {
             <>
               <div
                 onClick={() => fileInputRef.current?.click()}
-                className="flex-1 border-2 border-dashed border-slate-200 rounded-2xl p-8 flex flex-col items-center justify-center cursor-pointer hover:border-teal-400 hover:bg-slate-50 transition-all group min-h-[250px]"
+                className="flex-1 border-2 border-dashed border-green-300 rounded-2xl p-8 flex flex-col items-center justify-center cursor-pointer hover:border-green-500 hover:bg-green-50 transition-all group min-h-[250px]"
               >
-                <div className="bg-teal-50 p-4 rounded-full group-hover:scale-110 transition-transform mb-4">
-                  <Upload className="w-8 h-8 text-teal-500" />
+                <div className="bg-green-500/10 p-4 rounded-full group-hover:scale-110 transition-transform mb-4">
+                  <Upload className="w-8 h-8 text-green-500" />
                 </div>
-                <p className="text-slate-600 font-semibold text-center">Click to upload GIF or Image</p>
-                <p className="text-xs text-slate-400 mt-2">Animated GIFs can keep their motion!</p>
+                <p className="text-slate-700 font-semibold text-center">Click to upload GIF or Image</p>
+                <p className="text-xs text-slate-500 mt-2">Animated GIFs can keep their motion!</p>
                 <input
                   type="file"
                   ref={fileInputRef}
@@ -179,20 +179,20 @@ const RemoveTextTab: React.FC = () => {
 
               <div className="relative">
                 <div className="absolute inset-0 flex items-center">
-                  <span className="w-full border-t border-slate-200"></span>
+                  <span className="w-full border-t border-green-200"></span>
                 </div>
                 <div className="relative flex justify-center text-xs uppercase">
-                  <span className="bg-white px-3 text-slate-400 font-bold tracking-widest">OR</span>
+                  <span className="bg-gradient-to-br from-white via-green-50 to-emerald-50 px-3 text-slate-600 font-bold tracking-widest">OR</span>
                 </div>
               </div>
 
               <form onSubmit={handleUrlSubmit} className="flex gap-2">
                 <div className="relative flex-1">
-                  <LinkIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
+                  <LinkIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 w-4 h-4" />
                   <input
                     type="text"
                     placeholder="Paste image/GIF URL"
-                    className="w-full pl-9 pr-4 py-3.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-teal-500 outline-none transition-all text-sm"
+                    className="w-full pl-9 pr-4 py-3.5 rounded-xl border border-green-200 bg-white text-slate-800 focus:ring-2 focus:ring-green-500 outline-none transition-all text-sm placeholder:text-slate-400"
                     value={url}
                     onChange={(e) => setUrl(e.target.value)}
                   />
@@ -200,14 +200,14 @@ const RemoveTextTab: React.FC = () => {
                 <button
                   type="submit"
                   disabled={isLoading}
-                  className="bg-teal-600 text-white px-6 rounded-xl font-bold hover:bg-teal-700 transition-colors disabled:opacity-50 shadow-md shadow-teal-100"
+                  className="bg-green-600 text-white px-6 rounded-xl font-bold hover:bg-green-500 transition-colors disabled:opacity-50 shadow-lg shadow-green-900/20"
                 >
                   {isLoading ? <Loader2 className="animate-spin w-4 h-4" /> : 'Load'}
                 </button>
               </form>
             </>
           ) : (
-            <div className="relative rounded-2xl overflow-hidden border border-slate-200 group bg-slate-100 flex-1 flex items-center justify-center min-h-[350px]">
+            <div className="relative rounded-2xl overflow-hidden border border-slate-800 group bg-slate-950 flex-1 flex items-center justify-center min-h-[350px]">
               <img src={preview} alt="Preview" className="max-w-full max-h-[400px] object-contain shadow-sm" />
               <button
                 onClick={reset}
@@ -215,36 +215,26 @@ const RemoveTextTab: React.FC = () => {
               >
                 <X size={18} />
               </button>
-              <div className="absolute bottom-3 left-3 flex items-center gap-2">
-                <div className="px-3 py-1 bg-black/50 text-white text-[10px] rounded-lg uppercase tracking-widest font-black backdrop-blur-md border border-white/10">
-                  {mimeType.split('/')[1]}
-                </div>
-                {isAnimated && (
-                  <div className="px-3 py-1 bg-purple-500/80 text-white text-[10px] rounded-lg uppercase tracking-widest font-black backdrop-blur-md border border-white/10 flex items-center gap-1">
-                    <Film size={12} />
-                    ANIMATED
-                  </div>
-                )}
-              </div>
+
             </div>
           )}
         </div>
 
         {/* Animation Toggle */}
         {isAnimated && preview && (
-          <div className="mt-4 p-4 bg-purple-50 rounded-2xl border border-purple-100 flex items-center justify-between">
+          <div className="mt-4 p-4 bg-green-500/5 rounded-2xl border border-green-500/10 flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <Film className="text-purple-600 w-5 h-5" />
+              <Film className="text-green-500 w-5 h-5" />
               <div>
-                <p className="font-semibold text-purple-900 text-sm">Keep Animation</p>
-                <p className="text-xs text-purple-600">Preserve GIF motion after text removal</p>
+                <p className="font-semibold text-green-100 text-sm">Keep Animation</p>
+                <p className="text-xs text-green-500/70">Preserve GIF motion after text removal</p>
               </div>
             </div>
             <button
               onClick={() => setKeepAnimation(!keepAnimation)}
-              className="text-purple-600 hover:text-purple-800 transition-colors"
+              className="text-green-500 transition-colors"
             >
-              {keepAnimation ? <ToggleRight size={32} /> : <ToggleLeft size={32} />}
+              {keepAnimation ? <ToggleRight size={32} /> : <ToggleLeft size={32} className="opacity-50" />}
             </button>
           </div>
         )}
@@ -259,30 +249,30 @@ const RemoveTextTab: React.FC = () => {
         <button
           disabled={!preview || isLoading}
           onClick={processMagic}
-          className="w-full mt-6 py-4 bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-2xl font-black flex items-center justify-center gap-3 hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-xl shadow-teal-200 scale-100 active:scale-95"
+          className="w-full mt-6 py-4 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-2xl font-black flex items-center justify-center gap-3 hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-xl shadow-green-900/40 scale-100 active:scale-95"
         >
           {isLoading ? <Loader2 className="animate-spin w-5 h-5" /> : <Sparkles className="w-5 h-5" />}
           {isLoading ? (processingStatus || 'WORKING MAGIC...') : 'REMOVE TEXT NOW'}
         </button>
       </div>
 
-      <div className="bg-white p-6 rounded-3xl shadow-xl border border-slate-100 flex flex-col">
-        <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
-          <Sparkles className="text-amber-500 w-5 h-5" />
+      <div className="bg-gradient-to-br from-white via-green-50 to-emerald-50 p-6 rounded-3xl shadow-2xl border border-green-200/50 flex flex-col">
+        <h2 className="text-xl font-bold mb-4 flex items-center gap-2 text-slate-900">
+          <Sparkles className="text-green-400 w-5 h-5" />
           Clean Sticker
         </h2>
 
-        <div className="flex-1 border-2 border-dashed border-slate-100 rounded-2xl flex items-center justify-center bg-slate-50 overflow-hidden relative min-h-[400px]">
+        <div className="flex-1 border-2 border-dashed border-green-300 rounded-2xl flex items-center justify-center bg-green-50/30 overflow-hidden relative min-h-[400px]">
           {result ? (
             <div className="p-8 text-center w-full animate-in fade-in zoom-in-95 duration-700">
-              <div className="bg-white p-6 rounded-3xl shadow-inner inline-block mb-6 relative group">
+              <div className="bg-white/80 p-6 rounded-3xl shadow-inner inline-block mb-6 relative group">
                 <img src={result} alt="Result" className="max-w-full h-auto max-h-[300px] object-contain" />
-                <div className="absolute inset-0 border-8 border-slate-50/50 rounded-3xl pointer-events-none group-hover:border-teal-500/10 transition-colors"></div>
+                <div className="absolute inset-0 border-8 border-green-200/50 rounded-3xl pointer-events-none group-hover:border-green-500/30 transition-colors"></div>
               </div>
-              <p className="text-slate-500 text-sm mb-6 font-medium italic tracking-tight">Successfully re-imagined without text!</p>
+              <p className="text-slate-400 text-sm mb-6 font-medium italic tracking-tight uppercase">Successfully re-imagined without text!</p>
               <button
                 onClick={downloadSticker}
-                className="flex items-center gap-3 mx-auto px-8 py-4 bg-slate-900 text-white rounded-2xl font-black hover:bg-slate-800 transition-all shadow-xl shadow-slate-200 active:scale-95"
+                className="flex items-center gap-3 mx-auto px-8 py-4 bg-green-600 text-white rounded-2xl font-black hover:bg-green-500 transition-all shadow-xl shadow-green-900/40 active:scale-95"
               >
                 <Download size={22} />
                 SAVE STICKER
@@ -296,12 +286,12 @@ const RemoveTextTab: React.FC = () => {
           )}
 
           {isLoading && (
-            <div className="absolute inset-0 bg-white/90 backdrop-blur-xl flex flex-col items-center justify-center z-10 p-8 text-center">
+            <div className="absolute inset-0 bg-slate-950/90 backdrop-blur-xl flex flex-col items-center justify-center z-10 p-8 text-center">
               <div className="relative mb-6">
-                <div className="w-20 h-20 border-4 border-teal-100 border-t-teal-600 rounded-full animate-spin"></div>
-                <Sparkles className="absolute inset-0 m-auto text-teal-600 w-8 h-8 animate-pulse" />
+                <div className="w-20 h-20 border-4 border-green-900 border-t-green-500 rounded-full animate-spin"></div>
+                <Sparkles className="absolute inset-0 m-auto text-green-500 w-8 h-8 animate-pulse" />
               </div>
-              <p className="text-teal-900 font-black text-xl tracking-tight mb-2">
+              <p className="text-green-400 font-black text-xl tracking-tight mb-2 uppercase">
                 {processingStatus || 'SCRUBBING TEXT...'}
               </p>
               <p className="text-slate-400 text-sm font-medium max-w-[200px]">
