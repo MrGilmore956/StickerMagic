@@ -1,20 +1,34 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# Stickify 🎨✨
 
-# Run and deploy your AI Studio app
+AI-powered sticker creator that removes text from images and animated GIFs, or generates brand new stickers from prompts.
 
-This contains everything you need to run your app locally.
+**Live App**: [View in AI Studio](https://ai.studio/apps/drive/1aujC17MTeaV1lHRtuVC578iwJU0WE0Lo)
 
-View your app in AI Studio: https://ai.studio/apps/drive/1aujC17MTeaV1lHRtuVC578iwJU0WE0Lo
+## Features
+
+- **Magic Remover** - Upload an image or GIF, AI removes all text/watermarks
+- **Animated GIF Support** - Preserves animation while removing text (frame-by-frame processing)
+- **Sticker Creator** - Generate new stickers from text prompts
+- **Help Chat** - AI assistant for design tips and prompt writing
 
 ## Run Locally
 
-**Prerequisites:**  Node.js
-
+**Prerequisites:** Node.js
 
 1. Install dependencies:
-   `npm install`
+   ```bash
+   npm install
+   ```
 2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
 3. Run the app:
-   `npm run dev`
+   ```bash
+   npm run dev
+   ```
+
+## Rate Limits
+
+- **25 uses per user per day** for GIF processing
+
+---
+
+© 2025 Stickify • Powered by Gemini

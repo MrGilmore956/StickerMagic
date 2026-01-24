@@ -39,8 +39,8 @@ const CreateNewTab: React.FC = () => {
       {/* Controls */}
       <div className="lg:col-span-5 bg-white p-8 rounded-3xl shadow-xl border border-slate-100 h-fit">
         <h2 className="text-2xl font-bold mb-6 flex items-center gap-3">
-          <div className="bg-indigo-100 p-2 rounded-xl">
-            <ImageIcon className="text-indigo-600" />
+          <div className="bg-teal-100 p-2 rounded-xl">
+            <ImageIcon className="text-teal-600" />
           </div>
           Create from Scratch
         </h2>
@@ -51,7 +51,7 @@ const CreateNewTab: React.FC = () => {
               Prompt
             </label>
             <textarea
-              className="w-full h-32 p-4 rounded-2xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none transition-all resize-none text-slate-700 leading-relaxed"
+              className="w-full h-32 p-4 rounded-2xl border border-slate-200 focus:ring-2 focus:ring-teal-500 outline-none transition-all resize-none text-slate-700 leading-relaxed"
               placeholder="e.g. A cute neon cat wearing sunglasses, minimalist sticker style..."
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
@@ -67,11 +67,10 @@ const CreateNewTab: React.FC = () => {
                 <button
                   key={s}
                   onClick={() => setSize(s)}
-                  className={`py-3 rounded-xl font-bold text-sm transition-all border ${
-                    size === s
-                      ? 'bg-indigo-600 text-white border-indigo-600 shadow-md'
+                  className={`py-3 rounded-xl font-bold text-sm transition-all border ${size === s
+                      ? 'bg-teal-600 text-white border-teal-600 shadow-md'
                       : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50'
-                  }`}
+                    }`}
                 >
                   {s}
                 </button>
@@ -98,7 +97,7 @@ const CreateNewTab: React.FC = () => {
           {result && (
             <button
               onClick={downloadSticker}
-              className="flex items-center gap-2 px-4 py-2 bg-indigo-50 text-indigo-700 rounded-xl font-bold hover:bg-indigo-100 transition-all text-sm"
+              className="flex items-center gap-2 px-4 py-2 bg-teal-50 text-teal-700 rounded-xl font-bold hover:bg-teal-100 transition-all text-sm"
             >
               <Download size={18} />
               Save {size}
@@ -133,12 +132,12 @@ const CreateNewTab: React.FC = () => {
           {isLoading && (
             <div className="absolute inset-0 bg-slate-900/10 backdrop-blur-md flex flex-col items-center justify-center z-10 transition-all">
               <div className="flex space-x-2 mb-4">
-                <div className="w-4 h-4 bg-indigo-600 rounded-full animate-bounce [animation-delay:-0.3s]"></div>
-                <div className="w-4 h-4 bg-indigo-600 rounded-full animate-bounce [animation-delay:-0.15s]"></div>
-                <div className="w-4 h-4 bg-indigo-600 rounded-full animate-bounce"></div>
+                <div className="w-4 h-4 bg-teal-600 rounded-full animate-bounce [animation-delay:-0.3s]"></div>
+                <div className="w-4 h-4 bg-teal-600 rounded-full animate-bounce [animation-delay:-0.15s]"></div>
+                <div className="w-4 h-4 bg-teal-600 rounded-full animate-bounce"></div>
               </div>
-              <p className="text-indigo-900 font-extrabold text-lg tracking-tight">Creating High-Res Magic...</p>
-              <div className="mt-8 text-indigo-700/60 text-sm max-w-[200px] text-center">
+              <p className="text-teal-900 font-extrabold text-lg tracking-tight">Creating High-Res Magic...</p>
+              <div className="mt-8 text-teal-700/60 text-sm max-w-[200px] text-center">
                 Gemini 3 Pro Image is currently optimizing for {size} resolution.
               </div>
             </div>

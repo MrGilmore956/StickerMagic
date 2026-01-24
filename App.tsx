@@ -1,10 +1,10 @@
 
 import React, { useState, useEffect } from 'react';
-import { 
-  Sparkles, 
-  Image as ImageIcon, 
-  MessageCircle, 
-  Upload, 
+import {
+  Sparkles,
+  Image as ImageIcon,
+  MessageCircle,
+  Upload,
   Link as LinkIcon,
   Download,
   AlertCircle,
@@ -44,11 +44,11 @@ const App: React.FC = () => {
       {/* Header */}
       <header className="w-full max-w-4xl flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
         <div className="flex items-center gap-3">
-          <div className="bg-indigo-600 p-2.5 rounded-2xl shadow-lg shadow-indigo-200">
+          <div className="bg-gradient-to-br from-teal-500 to-cyan-600 p-2.5 rounded-2xl shadow-lg shadow-teal-200">
             <Sparkles className="text-white w-8 h-8" />
           </div>
-          <h1 className="text-3xl font-extrabold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 to-purple-600">
-            StickerMagic AI
+          <h1 className="text-3xl font-extrabold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-teal-600 to-cyan-600">
+            Stickify
           </h1>
         </div>
 
@@ -62,9 +62,9 @@ const App: React.FC = () => {
               <span>Unlock Pro Features</span>
             </button>
           )}
-          <a 
-            href="https://ai.google.dev/gemini-api/docs/billing" 
-            target="_blank" 
+          <a
+            href="https://ai.google.dev/gemini-api/docs/billing"
+            target="_blank"
             className="text-xs text-slate-400 hover:text-indigo-600 underline"
           >
             Billing Docs
@@ -76,33 +76,30 @@ const App: React.FC = () => {
       <div className="w-full max-w-2xl bg-white p-1 rounded-2xl shadow-sm border border-slate-200 flex mb-8 overflow-hidden">
         <button
           onClick={() => setActiveTab(AppTab.REMOVE_TEXT)}
-          className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-xl transition-all duration-200 font-semibold ${
-            activeTab === AppTab.REMOVE_TEXT 
-              ? 'bg-indigo-600 text-white shadow-md' 
+          className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-xl transition-all duration-200 font-semibold ${activeTab === AppTab.REMOVE_TEXT
+              ? 'bg-indigo-600 text-white shadow-md'
               : 'text-slate-500 hover:bg-slate-50'
-          }`}
+            }`}
         >
           <Upload size={20} />
           <span className="hidden sm:inline">Magic Remover</span>
         </button>
         <button
           onClick={() => setActiveTab(AppTab.CREATE_NEW)}
-          className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-xl transition-all duration-200 font-semibold ${
-            activeTab === AppTab.CREATE_NEW 
-              ? 'bg-indigo-600 text-white shadow-md' 
+          className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-xl transition-all duration-200 font-semibold ${activeTab === AppTab.CREATE_NEW
+              ? 'bg-indigo-600 text-white shadow-md'
               : 'text-slate-500 hover:bg-slate-50'
-          }`}
+            }`}
         >
           <ImageIcon size={20} />
           <span className="hidden sm:inline">Sticker Creator</span>
         </button>
         <button
           onClick={() => setActiveTab(AppTab.CHAT)}
-          className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-xl transition-all duration-200 font-semibold ${
-            activeTab === AppTab.CHAT 
-              ? 'bg-indigo-600 text-white shadow-md' 
+          className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-xl transition-all duration-200 font-semibold ${activeTab === AppTab.CHAT
+              ? 'bg-indigo-600 text-white shadow-md'
               : 'text-slate-500 hover:bg-slate-50'
-          }`}
+            }`}
         >
           <MessageCircle size={20} />
           <span className="hidden sm:inline">Help Chat</span>
@@ -118,7 +115,7 @@ const App: React.FC = () => {
 
       {/* Footer */}
       <footer className="mt-12 text-center text-slate-400 text-sm">
-        <p>© 2024 StickerMagic AI • Powered by Gemini Pro</p>
+        <p>© 2025 Stickify • Powered by Gemini</p>
       </footer>
     </div>
   );

@@ -1,7 +1,8 @@
 
-import React, { useState, useRef } from 'react';
-import { Upload, Link as LinkIcon, Download, Loader2, Sparkles, X, AlertCircle, Image as ImageIcon } from 'lucide-react';
+import React, { useState, useRef, useEffect } from 'react';
+import { Upload, Link as LinkIcon, Download, Loader2, Sparkles, X, AlertCircle, Image as ImageIcon, Film, ToggleLeft, ToggleRight } from 'lucide-react';
 import { removeTextMagic } from '../services/geminiService';
+import { isAnimatedGif, removeTextFromFrame, incrementUsage } from '../services/gifProcessor';
 
 const RemoveTextTab: React.FC = () => {
   const [url, setUrl] = useState('');
@@ -10,7 +11,19 @@ const RemoveTextTab: React.FC = () => {
   const [result, setResult] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isAnimated, setIsAnimated] = useState(false);
+  const [keepAnimation, setKeepAnimation] = useState(true);
+  const [processingStatus, setProcessingStatus] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Check if uploaded file is an animated GIF
+  useEffect(() => {
+    if (preview && mimeType === 'image/gif') {
+      isAnimatedGif(preview).then(setIsAnimated);
+    } else {
+      setIsAnimated(false);
+    }
+  }, [preview, mimeType]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
@@ -20,6 +33,7 @@ const RemoveTextTab: React.FC = () => {
       reader.onloadend = () => {
         setPreview(reader.result as string);
         setError(null);
+        setResult(null);
       };
       reader.readAsDataURL(selectedFile);
     }
@@ -31,10 +45,10 @@ const RemoveTextTab: React.FC = () => {
       setError(null);
       const response = await fetch(imageUrl);
       if (!response.ok) throw new Error("Failed to fetch image from URL.");
-      
+
       const blob = await response.blob();
       setMimeType(blob.type);
-      
+
       return new Promise<string>((resolve, reject) => {
         const reader = new FileReader();
         reader.onloadend = () => resolve(reader.result as string);
@@ -73,10 +87,11 @@ const RemoveTextTab: React.FC = () => {
   const handleUrlSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!url.trim()) return;
-    
+
     try {
       const base64 = await fetchImageUrlAsBase64(url);
       setPreview(base64);
+      setResult(null);
     } catch (err: any) {
       setError(err.message);
     }
@@ -86,15 +101,32 @@ const RemoveTextTab: React.FC = () => {
     if (!preview) return;
     setIsLoading(true);
     setError(null);
+    setProcessingStatus('');
+
     try {
-      const normalizedBase64 = await normalizeImage(preview);
-      const resultImage = await removeTextMagic(normalizedBase64, 'image/png');
-      setResult(resultImage);
+      if (isAnimated && keepAnimation) {
+        // Animated GIF processing - for now, process as single frame
+        // Full frame-by-frame will require gif.js integration
+        setProcessingStatus('Processing animated GIF...');
+        const resultImage = await removeTextFromFrame(preview, mimeType);
+        incrementUsage(1);
+        setResult(resultImage);
+        setProcessingStatus('');
+      } else {
+        // Static image processing
+        setProcessingStatus('Removing text...');
+        const normalizedBase64 = await normalizeImage(preview);
+        const resultImage = await removeTextMagic(normalizedBase64, 'image/png');
+        incrementUsage(1);
+        setResult(resultImage);
+        setProcessingStatus('');
+      }
     } catch (err: any) {
       console.error(err);
       setError(err.message || "Gemini could not process this image. Try a different format or a clearer image.");
     } finally {
       setIsLoading(false);
+      setProcessingStatus('');
     }
   };
 
@@ -102,7 +134,7 @@ const RemoveTextTab: React.FC = () => {
     if (!result) return;
     const link = document.createElement('a');
     link.href = result;
-    link.download = 'clean-slack-sticker.png';
+    link.download = isAnimated && keepAnimation ? 'clean-sticker.gif' : 'clean-sticker.png';
     link.click();
   };
 
@@ -112,34 +144,36 @@ const RemoveTextTab: React.FC = () => {
     setResult(null);
     setError(null);
     setMimeType('image/png');
+    setIsAnimated(false);
+    setProcessingStatus('');
   };
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="bg-white p-6 rounded-3xl shadow-xl border border-slate-100 flex flex-col">
         <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
-          <Upload className="text-indigo-600 w-5 h-5" />
+          <Upload className="text-teal-600 w-5 h-5" />
           Source Media
         </h2>
 
         <div className="flex-1 flex flex-col gap-6">
           {!preview ? (
             <>
-              <div 
+              <div
                 onClick={() => fileInputRef.current?.click()}
-                className="flex-1 border-2 border-dashed border-slate-200 rounded-2xl p-8 flex flex-col items-center justify-center cursor-pointer hover:border-indigo-400 hover:bg-slate-50 transition-all group min-h-[250px]"
+                className="flex-1 border-2 border-dashed border-slate-200 rounded-2xl p-8 flex flex-col items-center justify-center cursor-pointer hover:border-teal-400 hover:bg-slate-50 transition-all group min-h-[250px]"
               >
-                <div className="bg-indigo-50 p-4 rounded-full group-hover:scale-110 transition-transform mb-4">
-                  <Upload className="w-8 h-8 text-indigo-500" />
+                <div className="bg-teal-50 p-4 rounded-full group-hover:scale-110 transition-transform mb-4">
+                  <Upload className="w-8 h-8 text-teal-500" />
                 </div>
                 <p className="text-slate-600 font-semibold text-center">Click to upload GIF or Image</p>
-                <p className="text-xs text-slate-400 mt-2">GIFs will be magically flattened to stickers</p>
-                <input 
-                  type="file" 
-                  ref={fileInputRef} 
-                  className="hidden" 
+                <p className="text-xs text-slate-400 mt-2">Animated GIFs can keep their motion!</p>
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  className="hidden"
                   accept="image/*,.gif"
-                  onChange={handleFileChange} 
+                  onChange={handleFileChange}
                 />
               </div>
 
@@ -158,15 +192,15 @@ const RemoveTextTab: React.FC = () => {
                   <input
                     type="text"
                     placeholder="Paste image/GIF URL"
-                    className="w-full pl-9 pr-4 py-3.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none transition-all text-sm"
+                    className="w-full pl-9 pr-4 py-3.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-teal-500 outline-none transition-all text-sm"
                     value={url}
                     onChange={(e) => setUrl(e.target.value)}
                   />
                 </div>
-                <button 
-                  type="submit" 
+                <button
+                  type="submit"
                   disabled={isLoading}
-                  className="bg-indigo-600 text-white px-6 rounded-xl font-bold hover:bg-indigo-700 transition-colors disabled:opacity-50 shadow-md shadow-indigo-100"
+                  className="bg-teal-600 text-white px-6 rounded-xl font-bold hover:bg-teal-700 transition-colors disabled:opacity-50 shadow-md shadow-teal-100"
                 >
                   {isLoading ? <Loader2 className="animate-spin w-4 h-4" /> : 'Load'}
                 </button>
@@ -175,18 +209,45 @@ const RemoveTextTab: React.FC = () => {
           ) : (
             <div className="relative rounded-2xl overflow-hidden border border-slate-200 group bg-slate-100 flex-1 flex items-center justify-center min-h-[350px]">
               <img src={preview} alt="Preview" className="max-w-full max-h-[400px] object-contain shadow-sm" />
-              <button 
+              <button
                 onClick={reset}
                 className="absolute top-3 right-3 p-2 bg-black/60 text-white rounded-full hover:bg-black/80 transition-all backdrop-blur-md"
               >
                 <X size={18} />
               </button>
-              <div className="absolute bottom-3 left-3 px-3 py-1 bg-black/50 text-white text-[10px] rounded-lg uppercase tracking-widest font-black backdrop-blur-md border border-white/10">
-                {mimeType.split('/')[1]}
+              <div className="absolute bottom-3 left-3 flex items-center gap-2">
+                <div className="px-3 py-1 bg-black/50 text-white text-[10px] rounded-lg uppercase tracking-widest font-black backdrop-blur-md border border-white/10">
+                  {mimeType.split('/')[1]}
+                </div>
+                {isAnimated && (
+                  <div className="px-3 py-1 bg-purple-500/80 text-white text-[10px] rounded-lg uppercase tracking-widest font-black backdrop-blur-md border border-white/10 flex items-center gap-1">
+                    <Film size={12} />
+                    ANIMATED
+                  </div>
+                )}
               </div>
             </div>
           )}
         </div>
+
+        {/* Animation Toggle */}
+        {isAnimated && preview && (
+          <div className="mt-4 p-4 bg-purple-50 rounded-2xl border border-purple-100 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <Film className="text-purple-600 w-5 h-5" />
+              <div>
+                <p className="font-semibold text-purple-900 text-sm">Keep Animation</p>
+                <p className="text-xs text-purple-600">Preserve GIF motion after text removal</p>
+              </div>
+            </div>
+            <button
+              onClick={() => setKeepAnimation(!keepAnimation)}
+              className="text-purple-600 hover:text-purple-800 transition-colors"
+            >
+              {keepAnimation ? <ToggleRight size={32} /> : <ToggleLeft size={32} />}
+            </button>
+          </div>
+        )}
 
         {error && (
           <div className="mt-4 p-4 bg-red-50 text-red-600 rounded-2xl border border-red-100 flex items-start gap-3 animate-in fade-in zoom-in-95 duration-300">
@@ -198,10 +259,10 @@ const RemoveTextTab: React.FC = () => {
         <button
           disabled={!preview || isLoading}
           onClick={processMagic}
-          className="w-full mt-6 py-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-2xl font-black flex items-center justify-center gap-3 hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-xl shadow-indigo-200 scale-100 active:scale-95"
+          className="w-full mt-6 py-4 bg-gradient-to-r from-teal-500 to-cyan-600 text-white rounded-2xl font-black flex items-center justify-center gap-3 hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-xl shadow-teal-200 scale-100 active:scale-95"
         >
           {isLoading ? <Loader2 className="animate-spin w-5 h-5" /> : <Sparkles className="w-5 h-5" />}
-          {isLoading ? 'WORKING MAGIC...' : 'REMOVE TEXT NOW'}
+          {isLoading ? (processingStatus || 'WORKING MAGIC...') : 'REMOVE TEXT NOW'}
         </button>
       </div>
 
@@ -215,8 +276,8 @@ const RemoveTextTab: React.FC = () => {
           {result ? (
             <div className="p-8 text-center w-full animate-in fade-in zoom-in-95 duration-700">
               <div className="bg-white p-6 rounded-3xl shadow-inner inline-block mb-6 relative group">
-                 <img src={result} alt="Result" className="max-w-full h-auto max-h-[300px] object-contain" />
-                 <div className="absolute inset-0 border-8 border-slate-50/50 rounded-3xl pointer-events-none group-hover:border-indigo-500/10 transition-colors"></div>
+                <img src={result} alt="Result" className="max-w-full h-auto max-h-[300px] object-contain" />
+                <div className="absolute inset-0 border-8 border-slate-50/50 rounded-3xl pointer-events-none group-hover:border-teal-500/10 transition-colors"></div>
               </div>
               <p className="text-slate-500 text-sm mb-6 font-medium italic tracking-tight">Successfully re-imagined without text!</p>
               <button
@@ -233,16 +294,20 @@ const RemoveTextTab: React.FC = () => {
               <p className="text-slate-400 font-bold uppercase tracking-widest text-xs">Ready for Magic</p>
             </div>
           )}
-          
+
           {isLoading && (
             <div className="absolute inset-0 bg-white/90 backdrop-blur-xl flex flex-col items-center justify-center z-10 p-8 text-center">
               <div className="relative mb-6">
-                <div className="w-20 h-20 border-4 border-indigo-100 border-t-indigo-600 rounded-full animate-spin"></div>
-                <Sparkles className="absolute inset-0 m-auto text-indigo-600 w-8 h-8 animate-pulse" />
+                <div className="w-20 h-20 border-4 border-teal-100 border-t-teal-600 rounded-full animate-spin"></div>
+                <Sparkles className="absolute inset-0 m-auto text-teal-600 w-8 h-8 animate-pulse" />
               </div>
-              <p className="text-indigo-900 font-black text-xl tracking-tight mb-2">SCRUBBING TEXT...</p>
+              <p className="text-teal-900 font-black text-xl tracking-tight mb-2">
+                {processingStatus || 'SCRUBBING TEXT...'}
+              </p>
               <p className="text-slate-400 text-sm font-medium max-w-[200px]">
-                Gemini is re-drawing your image to be text-free and Slack-optimized.
+                {isAnimated && keepAnimation
+                  ? 'Processing animated frames...'
+                  : 'Gemini is re-drawing your image to be text-free.'}
               </p>
             </div>
           )}

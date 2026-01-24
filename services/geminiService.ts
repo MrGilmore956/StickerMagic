@@ -5,7 +5,7 @@ import { Message, StickerSize } from "../types";
 export const removeTextMagic = async (base64Data: string, mimeType: string): Promise<string> => {
   // Always use process.env.API_KEY directly for initialization as per guidelines
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-  
+
   // Extract base64 part if it's a data URL, otherwise use as is
   const cleanBase64 = base64Data.includes(',') ? base64Data.split(',')[1] : base64Data;
 
@@ -40,13 +40,13 @@ export const removeTextMagic = async (base64Data: string, mimeType: string): Pro
       return `data:image/png;base64,${part.inlineData.data}`;
     }
   }
-  
+
   throw new Error("The model did not return a processed image part.");
 };
 
 export const generateStickerFromPrompt = async (prompt: string, size: StickerSize): Promise<string> => {
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-  
+
   const response = await ai.models.generateContent({
     model: 'gemini-3-pro-image-preview',
     contents: {
@@ -80,16 +80,16 @@ export const generateStickerFromPrompt = async (prompt: string, size: StickerSiz
 
 export const chatWithAssistant = async (messages: Message[]): Promise<string> => {
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-  
+
   const chat = ai.chats.create({
     model: 'gemini-3-pro-preview',
     config: {
-      systemInstruction: 'You are StickerMagic AI Assistant. You help users remove text from images or GIFs to make stickers, or help them write better prompts for generating brand new high-quality stickers. Be concise, friendly, and expert in design and Slack emoji best practices.',
+      systemInstruction: 'You are the Stickify Assistant. You help users remove text from images or animated GIFs to make stickers, or help them write better prompts for generating brand new high-quality stickers. Be concise, friendly, and expert in design and Slack emoji best practices.',
     },
   });
 
   const lastUserMsg = messages[messages.length - 1].content;
   const response = await chat.sendMessage({ message: lastUserMsg });
-  
+
   return response.text || "I'm sorry, I couldn't process that.";
 };
