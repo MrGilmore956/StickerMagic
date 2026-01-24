@@ -9,7 +9,7 @@ export interface ApiKeyResult {
     error?: string;
 }
 
-export const getStickifyApiKey = async (): Promise<ApiKeyResult> => {
+export const getSaucyApiKey = async (): Promise<ApiKeyResult> => {
     // 1. Try AI Studio Bridge (Official environment)
     // @ts-ignore
     if (window.aistudio?.getApiKey) {
@@ -45,7 +45,7 @@ export const getStickifyApiKey = async (): Promise<ApiKeyResult> => {
     };
 };
 
-export const saveStickifyApiKey = (key: string) => {
+export const saveSaucyApiKey = (key: string) => {
     if (key && key.length > 20) {
         localStorage.setItem('stickify_api_key', key.trim());
         return true;
@@ -53,6 +53,6 @@ export const saveStickifyApiKey = (key: string) => {
     return false;
 };
 
-export const clearStickifyApiKey = () => {
+export const clearSaucyApiKey = () => {
     localStorage.removeItem('stickify_api_key');
 };

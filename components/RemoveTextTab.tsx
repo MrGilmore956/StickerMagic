@@ -1,8 +1,9 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Upload, Link as LinkIcon, Download, Loader2, Sparkles, X, AlertCircle, Image as ImageIcon, Film, ToggleLeft, ToggleRight } from 'lucide-react';
+import { Upload, Link as LinkIcon, Download, Loader2, Sparkles, X, AlertCircle, Image as ImageIcon, Film, ToggleLeft, ToggleRight, Wand2, Palette } from 'lucide-react';
 import { removeTextMagic } from '../services/geminiService';
 import { isAnimatedGif, removeTextFromFrame, incrementUsage } from '../services/gifProcessor';
+import { reimagineAsSticker } from '../services/gifFrameAnalyzer';
 
 const RemoveTextTab: React.FC = () => {
   const [url, setUrl] = useState('');
@@ -14,6 +15,9 @@ const RemoveTextTab: React.FC = () => {
   const [isAnimated, setIsAnimated] = useState(false);
   const [keepAnimation, setKeepAnimation] = useState(true);
   const [processingStatus, setProcessingStatus] = useState('');
+  const [creativeResult, setCreativeResult] = useState<string | null>(null);
+  const [creativeStyle, setCreativeStyle] = useState<'cartoon' | 'emoji' | 'chibi' | 'minimalist'>('cartoon');
+  const [showBothResults, setShowBothResults] = useState(true);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Check if uploaded file is an animated GIF
@@ -102,23 +106,33 @@ const RemoveTextTab: React.FC = () => {
     setIsLoading(true);
     setError(null);
     setProcessingStatus('');
+    setCreativeResult(null);
 
     try {
       if (isAnimated && keepAnimation) {
         // Animated GIF processing - for now, process as single frame
-        // Full frame-by-frame will require gif.js integration
         setProcessingStatus('Processing animated GIF...');
         const resultImage = await removeTextFromFrame(preview, mimeType);
         incrementUsage(1);
         setResult(resultImage);
         setProcessingStatus('');
       } else {
-        // Static image processing
-        setProcessingStatus('Removing text...');
+        // Static image processing - run both options in parallel
+        setProcessingStatus('Removing text & creating styles...');
         const normalizedBase64 = await normalizeImage(preview);
-        const resultImage = await removeTextMagic(normalizedBase64, 'image/png');
-        incrementUsage(1);
-        setResult(resultImage);
+
+        // Run both processes in parallel for speed
+        const [cleanResult, creativeResponse] = await Promise.all([
+          removeTextMagic(normalizedBase64, 'image/png'),
+          showBothResults ? reimagineAsSticker(normalizedBase64, creativeStyle) : Promise.resolve(null),
+        ]);
+
+        incrementUsage(showBothResults ? 2 : 1);
+        setResult(cleanResult);
+
+        if (creativeResponse?.success && creativeResponse.imageData) {
+          setCreativeResult(creativeResponse.imageData);
+        }
         setProcessingStatus('');
       }
     } catch (err: any) {
@@ -138,10 +152,19 @@ const RemoveTextTab: React.FC = () => {
     link.click();
   };
 
+  const downloadCreative = () => {
+    if (!creativeResult) return;
+    const link = document.createElement('a');
+    link.href = creativeResult;
+    link.download = `creative-sticker-${creativeStyle}.png`;
+    link.click();
+  };
+
   const reset = () => {
     setUrl('');
     setPreview(null);
     setResult(null);
+    setCreativeResult(null);
     setError(null);
     setMimeType('image/png');
     setIsAnimated(false);
@@ -246,6 +269,42 @@ const RemoveTextTab: React.FC = () => {
           </div>
         )}
 
+        {/* Creative Style Selector */}
+        {preview && !isAnimated && (
+          <div className="mt-4 p-4 bg-purple-50 rounded-2xl border border-purple-200">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <Palette className="text-purple-500 w-5 h-5" />
+                <span className="font-semibold text-purple-800 text-sm">Creative Style</span>
+              </div>
+              <button
+                onClick={() => setShowBothResults(!showBothResults)}
+                className="text-xs text-purple-600 hover:text-purple-800"
+              >
+                {showBothResults ? '✓ Show Both Results' : 'Clean Only'}
+              </button>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {(['cartoon', 'emoji', 'chibi', 'minimalist'] as const).map((style) => (
+                <button
+                  key={style}
+                  onClick={() => setCreativeStyle(style)}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${creativeStyle === style
+                    ? 'bg-purple-500 text-white shadow-lg'
+                    : 'bg-white text-purple-600 border border-purple-200 hover:border-purple-400'
+                    }`}
+                >
+                  {style === 'cartoon' && '🎨 '}
+                  {style === 'emoji' && '😊 '}
+                  {style === 'chibi' && '✨ '}
+                  {style === 'minimalist' && '✏️ '}
+                  {style.charAt(0).toUpperCase() + style.slice(1)}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
         <button
           disabled={!preview || isLoading}
           onClick={processMagic}
@@ -259,24 +318,50 @@ const RemoveTextTab: React.FC = () => {
       <div className="bg-gradient-to-br from-white via-green-50 to-emerald-50 p-6 rounded-3xl shadow-2xl border border-green-200/50 flex flex-col">
         <h2 className="text-xl font-bold mb-4 flex items-center gap-2 text-slate-900">
           <Sparkles className="text-green-400 w-5 h-5" />
-          Clean Sticker
+          {creativeResult ? 'Choose Your Sticker' : 'Clean Sticker'}
         </h2>
 
         <div className="flex-1 border-2 border-dashed border-green-300 rounded-2xl flex items-center justify-center bg-green-50/30 overflow-hidden relative min-h-[400px]">
           {result ? (
-            <div className="p-8 text-center w-full animate-in fade-in zoom-in-95 duration-700">
-              <div className="bg-white/80 p-6 rounded-3xl shadow-inner inline-block mb-6 relative group">
-                <img src={result} alt="Result" className="max-w-full h-auto max-h-[300px] object-contain" />
-                <div className="absolute inset-0 border-8 border-green-200/50 rounded-3xl pointer-events-none group-hover:border-green-500/30 transition-colors"></div>
+            <div className="p-4 w-full animate-in fade-in zoom-in-95 duration-700">
+              {/* Dual Results Grid */}
+              <div className={`grid ${creativeResult ? 'grid-cols-2 gap-4' : 'grid-cols-1'}`}>
+                {/* Clean Result */}
+                <div className="text-center">
+                  <p className="text-xs font-bold text-green-600 uppercase tracking-wide mb-2">🧹 Smart Clean</p>
+                  <div className="bg-white/80 p-4 rounded-2xl shadow-inner inline-block relative group">
+                    <img src={result} alt="Clean Result" className="max-w-full h-auto max-h-[200px] object-contain" />
+                  </div>
+                  <button
+                    onClick={downloadSticker}
+                    className="mt-3 flex items-center gap-2 mx-auto px-4 py-2 bg-green-600 text-white rounded-xl font-bold text-sm hover:bg-green-500 transition-all shadow-lg active:scale-95"
+                  >
+                    <Download size={16} />
+                    Save Clean
+                  </button>
+                </div>
+
+                {/* Creative Result */}
+                {creativeResult && (
+                  <div className="text-center">
+                    <p className="text-xs font-bold text-purple-600 uppercase tracking-wide mb-2">🎨 {creativeStyle.charAt(0).toUpperCase() + creativeStyle.slice(1)} Style</p>
+                    <div className="bg-white/80 p-4 rounded-2xl shadow-inner inline-block relative group border-2 border-purple-200">
+                      <img src={creativeResult} alt="Creative Result" className="max-w-full h-auto max-h-[200px] object-contain" />
+                    </div>
+                    <button
+                      onClick={downloadCreative}
+                      className="mt-3 flex items-center gap-2 mx-auto px-4 py-2 bg-purple-600 text-white rounded-xl font-bold text-sm hover:bg-purple-500 transition-all shadow-lg active:scale-95"
+                    >
+                      <Download size={16} />
+                      Save Creative
+                    </button>
+                  </div>
+                )}
               </div>
-              <p className="text-slate-400 text-sm mb-6 font-medium italic tracking-tight uppercase">Successfully re-imagined without text!</p>
-              <button
-                onClick={downloadSticker}
-                className="flex items-center gap-3 mx-auto px-8 py-4 bg-green-600 text-white rounded-2xl font-black hover:bg-green-500 transition-all shadow-xl shadow-green-900/40 active:scale-95"
-              >
-                <Download size={22} />
-                SAVE STICKER
-              </button>
+
+              <p className="text-center text-slate-400 text-xs mt-4 font-medium italic tracking-tight uppercase">
+                {creativeResult ? 'Pick your favorite style!' : 'Text successfully removed!'}
+              </p>
             </div>
           ) : (
             <div className="text-center p-12 animate-pulse">
@@ -292,11 +377,11 @@ const RemoveTextTab: React.FC = () => {
                 <Sparkles className="absolute inset-0 m-auto text-green-500 w-8 h-8 animate-pulse" />
               </div>
               <p className="text-green-400 font-black text-xl tracking-tight mb-2 uppercase">
-                {processingStatus || 'SCRUBBING TEXT...'}
+                {processingStatus || 'CREATING MAGIC...'}
               </p>
               <p className="text-slate-400 text-sm font-medium max-w-[200px]">
-                {isAnimated && keepAnimation
-                  ? 'Processing animated frames...'
+                {showBothResults
+                  ? 'Generating clean version + creative style...'
                   : 'Gemini is re-drawing your image to be text-free.'}
               </p>
             </div>

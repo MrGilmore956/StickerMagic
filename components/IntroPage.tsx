@@ -25,15 +25,15 @@ const IntroPage: React.FC<IntroPageProps> = ({ onGetStarted }) => {
                         <div className="relative group">
                             <div className="absolute inset-0 bg-green-500/30 blur-3xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-700"></div>
                             <img
-                                src="/sticko-logo.png"
-                                alt="Sticko"
+                                src="/saucy-logo.jpg"
+                                alt="Sizzle"
                                 className="w-32 h-32 relative z-10 animate-in zoom-in-95 duration-700 [animation-delay:200ms]"
                             />
                         </div>
                     </div>
 
                     <h1 className="text-7xl md:text-8xl font-black tracking-tighter bg-clip-text text-transparent bg-gradient-to-br from-white via-green-200 to-green-400 animate-in fade-in slide-in-from-bottom-4 duration-700 [animation-delay:300ms]">
-                        Stickify
+                        Saucy
                     </h1>
 
                     <p className="text-2xl md:text-3xl font-bold text-slate-300 max-w-3xl mx-auto leading-relaxed animate-in fade-in slide-in-from-bottom-4 duration-700 [animation-delay:500ms]">
@@ -105,9 +105,9 @@ const IntroPage: React.FC<IntroPageProps> = ({ onGetStarted }) => {
                                 <div className="bg-green-500/10 w-16 h-16 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-500">
                                     <MessageCircle className="w-8 h-8 text-green-400" />
                                 </div>
-                                <h3 className="text-2xl font-black mb-4 text-white">Sticko Assistant</h3>
+                                <h3 className="text-2xl font-black mb-4 text-white">Sizzle Assistant</h3>
                                 <p className="text-slate-400 leading-relaxed">
-                                    Chat with Sticko, your AI design buddy. Get prompt tips, optimization advice, and creative guidance on-demand.
+                                    Chat with Sizzle, your AI design buddy. Get prompt tips, optimization advice, and creative guidance on-demand.
                                 </p>
                             </div>
                         </div>
@@ -123,14 +123,14 @@ const IntroPage: React.FC<IntroPageProps> = ({ onGetStarted }) => {
                         Ready to start creating?
                     </h2>
                     <p className="text-xl text-slate-400 max-w-2xl mx-auto">
-                        Join creators who trust Stickify to deliver pixel-perfect results every time.
+                        Join creators who trust Saucy to deliver pixel-perfect results every time.
                     </p>
                     <div className="flex flex-col sm:flex-row gap-4 justify-center items-center pt-4">
                         <button
                             onClick={onGetStarted}
                             className="group inline-flex items-center gap-3 px-10 py-5 bg-green-600 text-white text-xl font-black rounded-[2rem] hover:bg-green-500 transition-all shadow-[0_0_40px_-10px_rgba(34,197,94,0.6)] hover:shadow-[0_0_60px_-10px_rgba(34,197,94,0.8)] active:scale-95"
                         >
-                            Launch Stickify
+                            Launch Saucy
                             <ArrowRight className="w-6 h-6 group-hover:translate-x-1 transition-transform" />
                         </button>
                     </div>
@@ -155,7 +155,7 @@ const IntroPage: React.FC<IntroPageProps> = ({ onGetStarted }) => {
 
             {/* Footer */}
             <footer className="border-t border-slate-900 py-8 px-6 text-center text-sm text-slate-600">
-                <p>Stickify © 2026. Powered by Google Gemini AI.</p>
+                <p>Saucy © 2026. Powered by Google Gemini AI.</p>
             </footer>
         </div>
     );

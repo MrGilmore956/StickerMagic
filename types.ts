@@ -12,7 +12,6 @@ export interface StickerResult {
 }
 
 export enum AppTab {
-  REMOVE_TEXT = 'REMOVE_TEXT',
-  CREATE_NEW = 'CREATE_NEW',
+  CREATE = 'CREATE',
   CHAT = 'CHAT'
 }

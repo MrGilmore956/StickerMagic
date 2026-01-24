@@ -1,6 +1,6 @@
 
 import { GoogleGenAI } from "@google/genai";
-import { getStickifyApiKey } from "./authService";
+import { getSaucyApiKey } from "./authService";
 
 export interface GifFrame {
     imageData: string;
@@ -35,7 +35,7 @@ export const removeTextFromFrame = async (
     base64Data: string,
     mimeType: string = 'image/png'
 ): Promise<string> => {
-    const { key, isDemo } = await getStickifyApiKey();
+    const { key, isDemo } = await getSaucyApiKey();
 
     if (isDemo) {
         await new Promise(r => setTimeout(r, 800));

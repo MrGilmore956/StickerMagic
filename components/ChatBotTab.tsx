@@ -6,7 +6,7 @@ import { Message } from '../types';
 
 const ChatBotTab: React.FC = () => {
   const [messages, setMessages] = useState<Message[]>([
-    { role: 'model', content: "Hey! I'm Sticko, your Stickify sidekick. I'm here to help you scrub text from GIFs, optimize your stickers for Slack, or brainstorm prompts that'll make your team jealous. What can I help you stick together today?" }
+    { role: 'model', content: "Hey! I'm Sizzle, your Saucy sidekick. I'm here to help you scrub text from GIFs, optimize your stickers for Slack, or brainstorm prompts that'll make your team jealous. What can I help you stick together today?" }
   ]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -45,16 +45,16 @@ const ChatBotTab: React.FC = () => {
           <div className="relative">
             <div className="absolute inset-0 bg-green-400/20 blur-xl rounded-full"></div>
             <img
-              src="/sticko-logo.png"
-              alt="Sticko"
+              src="/saucy-logo.jpg"
+              alt="Sizzle"
               className="w-14 h-14 rounded-2xl border-2 border-green-400/30 object-cover relative z-10"
             />
             <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-slate-900 z-20"></div>
           </div>
           <div>
-            <h3 className="font-black text-xl text-slate-100 tracking-tight">Sticko <span className="text-green-400 text-xs font-black ml-1 uppercase bg-green-400/10 px-2 py-0.5 rounded-md border border-green-400/20">PRO</span></h3>
+            <h3 className="font-black text-xl text-slate-100 tracking-tight">Sizzle <span className="text-green-400 text-xs font-black ml-1 uppercase bg-green-400/10 px-2 py-0.5 rounded-md border border-green-400/20">PRO</span></h3>
             <div className="flex items-center gap-1.5">
-              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Stickify Expert</span>
+              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Saucy Expert</span>
             </div>
           </div>
         </div>
@@ -76,7 +76,7 @@ const ChatBotTab: React.FC = () => {
                 {msg.role === 'user' ? (
                   <User size={20} className="text-slate-600" />
                 ) : (
-                  <img src="/sticko-logo.png" alt="Sticko" className="w-full h-full object-cover" />
+                  <img src="/saucy-logo.jpg" alt="Sizzle" className="w-full h-full object-cover" />
                 )}
               </div>
               <div className={`p-5 rounded-3xl text-[15px] leading-relaxed shadow-lg ${msg.role === 'user'
@@ -96,7 +96,7 @@ const ChatBotTab: React.FC = () => {
                 <div className="w-2 h-2 bg-green-400 rounded-full animate-bounce [animation-delay:-0.15s]"></div>
                 <div className="w-2 h-2 bg-green-400 rounded-full animate-bounce"></div>
               </div>
-              <span className="text-xs font-black text-slate-600 uppercase tracking-widest">Sticko is thinking...</span>
+              <span className="text-xs font-black text-slate-600 uppercase tracking-widest">Sizzle is thinking...</span>
             </div>
           </div>
         )}
@@ -108,7 +108,7 @@ const ChatBotTab: React.FC = () => {
           <input
             type="text"
             className="w-full pl-6 pr-16 py-5 rounded-[1.5rem] border border-green-200 bg-white text-slate-800 focus:ring-2 focus:ring-green-400/50 outline-none transition-all shadow-inner placeholder:text-slate-400 font-medium"
-            placeholder="Ask Sticko anything..."
+            placeholder="Ask Sizzle anything..."
             value={input}
             onChange={(e) => setInput(e.target.value)}
           />
