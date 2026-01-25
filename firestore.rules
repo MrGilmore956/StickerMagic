@@ -11,5 +11,12 @@ service cloud.firestore {
         allow read, write: if request.auth != null && request.auth.uid == userId;
       }
     }
+    
+    // GIF Library - public read, anyone can write (for community contribution)
+    match /gif_library/{itemId} {
+      allow read: if true;
+      allow create: if true;
+      allow update, delete: if request.auth != null;
+    }
   }
 }

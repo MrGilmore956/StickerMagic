@@ -185,12 +185,51 @@ export const askSaucy = async (
   // Build content parts with images for vision analysis
   const parts: any[] = [];
 
-  // Add images first for vision analysis
+  // Helper to convert GIF to PNG
+  const convertGifToPng = async (base64Data: string): Promise<{ data: string; mimeType: string }> => {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = img.width;
+        canvas.height = img.height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          reject(new Error("Could not get canvas context"));
+          return;
+        }
+        ctx.drawImage(img, 0, 0);
+        const pngData = canvas.toDataURL('image/png');
+        resolve({ data: pngData.split(',')[1], mimeType: 'image/png' });
+      };
+      img.onerror = () => reject(new Error("Failed to load image"));
+      img.src = base64Data.includes(',') ? base64Data : `data:image/gif;base64,${base64Data}`;
+    });
+  };
+
+  // Add images first for vision analysis (convert GIFs to PNG)
   for (const img of imageData.slice(0, 3)) {
+    let processedData = img.base64.replace(/^data:[^;]+;base64,/, '');
+    let processedMimeType = img.mimeType;
+
+    // Convert GIF to PNG since Gemini doesn't support image/gif
+    if (img.mimeType === 'image/gif') {
+      try {
+        console.log("Converting GIF to PNG for AI analysis...");
+        const fullBase64 = img.base64.includes(',') ? img.base64 : `data:image/gif;base64,${img.base64}`;
+        const converted = await convertGifToPng(fullBase64);
+        processedData = converted.data;
+        processedMimeType = converted.mimeType;
+      } catch (err) {
+        console.warn("GIF conversion failed, skipping image:", err);
+        continue; // Skip this image if conversion fails
+      }
+    }
+
     parts.push({
       inlineData: {
-        mimeType: img.mimeType,
-        data: img.base64.replace(/^data:[^;]+;base64,/, ''),
+        mimeType: processedMimeType,
+        data: processedData,
       }
     });
   }
@@ -205,6 +244,7 @@ export const askSaucy = async (
        Example format: "Bob Marley vibing while Elon looks confused and MLK gives an inspiring speech about crypto"
        
        Keep it under 20 words. Be silly, irreverent, and specific to these actual images.
+       RESPOND WITH ONLY THE CONCEPT - no labels, no prefixes, just the idea itself.
        ${userIdea ? `User's idea to incorporate: ${userIdea}` : ''}`
     : `You are Saucy, a silly and funny AI assistant. Look at these images carefully - identify WHO or WHAT is in each one.
        
@@ -212,6 +252,7 @@ export const askSaucy = async (
        Be specific about what's IN the images. Reference their expressions and who they are.
        
        Keep it under 15 words. Be silly and specific to these actual images.
+       RESPOND WITH ONLY THE CONCEPT - no labels like "Sticker concept:" or "Who is in the image:", just the idea itself.
        ${userIdea ? `User's idea: ${userIdea}` : ''}`;
 
   parts.push({ text: textPrompt });
@@ -223,4 +264,123 @@ export const askSaucy = async (
 
   return response.candidates?.[0]?.content?.parts?.[0]?.text ||
     "Hmm, I couldn't analyze those images. Try describing what you want!";
+};
+
+/**
+ * Refine a suggestion based on user feedback
+ * Part of the Creative Director Loop
+ */
+export const refineSuggestion = async (
+  currentPrompt: string,
+  userFeedback: string,
+  imageData: { base64: string; mimeType: string }[],
+  mode: 'sticker' | 'animation'
+): Promise<string> => {
+  const { key, isDemo } = await getSaucyApiKey();
+
+  if (isDemo) {
+    // Simulate refinement in demo mode
+    await new Promise(r => setTimeout(r, 800));
+    const demoResponses: Record<string, string> = {
+      'funnier': `${currentPrompt} but with exaggerated silly expressions and meme energy`,
+      'spicier': `${currentPrompt} with intense dramatic flair and bold energy`,
+      'softer': `${currentPrompt} but gentler, more subtle and calming`,
+      'dramatic': `${currentPrompt} in an epic cinematic style with intense emotions`,
+    };
+    const key = Object.keys(demoResponses).find(k => userFeedback.toLowerCase().includes(k));
+    return key ? demoResponses[key] : `Refined version: ${currentPrompt} with ${userFeedback}`;
+  }
+
+  const ai = new GoogleGenAI({ apiKey: key });
+
+  // Build content parts with images
+  const parts: any[] = [];
+
+  // Helper to convert GIF to PNG with timeout
+  const convertGifToPng = async (base64Data: string): Promise<{ data: string; mimeType: string }> => {
+    return new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        reject(new Error("GIF conversion timed out"));
+      }, 5000); // 5 second timeout
+
+      const img = new Image();
+      img.onload = () => {
+        clearTimeout(timeout);
+        try {
+          const canvas = document.createElement('canvas');
+          canvas.width = img.width;
+          canvas.height = img.height;
+          const ctx = canvas.getContext('2d');
+          if (!ctx) {
+            reject(new Error("Could not get canvas context"));
+            return;
+          }
+          ctx.drawImage(img, 0, 0);
+          const pngData = canvas.toDataURL('image/png');
+          resolve({ data: pngData.split(',')[1], mimeType: 'image/png' });
+        } catch (err) {
+          reject(err);
+        }
+      };
+      img.onerror = () => {
+        clearTimeout(timeout);
+        reject(new Error("Failed to load image"));
+      };
+      img.src = base64Data.includes(',') ? base64Data : `data:image/gif;base64,${base64Data}`;
+    });
+  };
+
+  // Add images for context - process them in parallel with individual error handling
+  const imagePromises = imageData.slice(0, 3).map(async (img) => {
+    try {
+      let processedData = img.base64.replace(/^data:[^;]+;base64,/, '');
+      let processedMimeType = img.mimeType;
+
+      if (img.mimeType === 'image/gif') {
+        const fullBase64 = img.base64.includes(',') ? img.base64 : `data:image/gif;base64,${img.base64}`;
+        const converted = await convertGifToPng(fullBase64);
+        processedData = converted.data;
+        processedMimeType = converted.mimeType;
+      }
+
+      return {
+        inlineData: {
+          mimeType: processedMimeType,
+          data: processedData,
+        }
+      };
+    } catch (err) {
+      console.log('Image processing skipped:', err);
+      return null;
+    }
+  });
+
+  const processedImages = await Promise.all(imagePromises);
+  processedImages.filter(Boolean).forEach(img => parts.push(img));
+
+  // Build the refinement prompt
+  const textPrompt = `You are Saucy, a creative AI assistant helping refine ${mode} ideas.
+
+Current creative direction: "${currentPrompt}"
+
+User feedback: "${userFeedback}"
+
+Based on the images provided and the user's feedback, generate a REFINED creative direction.
+- Address the user's specific feedback
+- Keep the core idea but adjust the tone/style as requested
+- Be specific about what's in the images
+- Keep it under 20 words
+- Be creative and fun!
+
+Respond with ONLY the refined prompt, nothing else.`;
+
+  parts.push({ text: textPrompt });
+
+  const response = await ai.models.generateContent({
+    model: 'gemini-2.5-flash',
+    contents: [{ role: 'user', parts }],
+  });
+
+  const refined = response.candidates?.[0]?.content?.parts?.[0]?.text;
+  return refined?.trim() || currentPrompt;
 };

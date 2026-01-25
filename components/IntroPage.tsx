@@ -1,71 +1,172 @@
 
-import React, { useState } from 'react';
-import { ArrowRight, Sparkles, Zap, Download, MessageCircle, CheckCircle2 } from 'lucide-react';
+import React from 'react';
+import { ArrowRight, Sparkles, Zap, Download, MessageCircle, ChevronRight } from 'lucide-react';
 
 interface IntroPageProps {
     onGetStarted: () => void;
 }
 
 const IntroPage: React.FC<IntroPageProps> = ({ onGetStarted }) => {
+    // Sample creations for the gallery
+    const recentCreations = [
+        { id: 1, type: 'Sticker', label: 'Saucy Logo', emoji: '🎨' },
+        { id: 2, type: 'Animation', label: 'Dancing Chef', emoji: '👨‍🍳' },
+        { id: 3, type: 'Sticker', label: 'Hot Sauce', emoji: '🌶️' },
+        { id: 4, type: 'Animation', label: 'Cooking Fire', emoji: '🔥' },
+    ];
+
     return (
-        <div className="min-h-screen bg-black text-white overflow-x-hidden">
-            {/* Hero Section */}
-            <section className="relative min-h-screen flex flex-col items-center justify-center px-6 py-20">
-                {/* Animated Background Gradient */}
-                <div className="absolute inset-0 bg-gradient-to-br from-red-950/20 via-black to-slate-950/20 opacity-50"></div>
-                <div className="absolute inset-0 overflow-hidden">
-                    <div className="absolute top-1/4 left-1/4 w-[500px] h-[500px] bg-red-500/10 rounded-full blur-[120px] animate-pulse"></div>
-                    <div className="absolute bottom-1/4 right-1/4 w-[400px] h-[400px] bg-red-500/5 rounded-full blur-[100px] animate-pulse [animation-delay:1s]"></div>
-                </div>
+        <div className="min-h-screen bg-[#0a0a0b] text-white overflow-x-hidden">
+            {/* Header Navigation */}
+            <header className="w-full flex items-center justify-between px-8 py-4 border-b border-slate-800/50">
+                {/* Logo */}
+                <a href="/" className="flex items-center group">
+                    <img
+                        src="/saucy-text-logo.png"
+                        alt="Saucy"
+                        className="h-12 md:h-14 w-auto transition-all group-hover:brightness-110 group-hover:scale-105 duration-300"
+                    />
+                </a>
 
-                {/* Hero Content */}
-                <div className="relative z-10 max-w-5xl mx-auto text-center space-y-8 animate-in fade-in slide-in-from-bottom-8 duration-1000">
-                    {/* Logo */}
-                    <div className="flex justify-center mb-8">
-                        <div className="relative group">
-                            <div className="absolute inset-0 bg-red-500/30 blur-3xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-700"></div>
-                            <img
-                                src="/saucy-logo.jpg"
-                                alt="Saucy"
-                                className="w-32 h-32 relative z-10 animate-in zoom-in-95 duration-700 [animation-delay:200ms] rounded-3xl"
-                            />
-                        </div>
-                    </div>
-
-                    <h1 className="text-7xl md:text-8xl font-black tracking-tighter bg-clip-text text-transparent bg-gradient-to-br from-white via-red-200 to-red-600 animate-in fade-in slide-in-from-bottom-4 duration-700 [animation-delay:300ms]">
-                        Saucy
-                    </h1>
-
-                    <p className="text-2xl md:text-3xl font-bold text-slate-300 max-w-3xl mx-auto leading-relaxed animate-in fade-in slide-in-from-bottom-4 duration-700 [animation-delay:500ms]">
-                        Where AI meets <span className="text-red-500">pixel-perfect stickers</span>
-                    </p>
-
-                    <p className="text-lg text-slate-400 max-w-2xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-700 [animation-delay:700ms]">
-                        Scrub text from GIFs. Generate Slack-ready stickers. Powered by Gemini Pro Image AI.
-                    </p>
-
+                {/* Navigation Links */}
+                <nav className="hidden md:flex items-center gap-1">
                     <button
                         onClick={onGetStarted}
-                        className="group inline-flex items-center gap-3 px-10 py-5 bg-red-600 text-white text-xl font-black rounded-[2rem] hover:bg-red-500 transition-all shadow-[0_0_40px_-10px_rgba(220,38,38,0.6)] hover:shadow-[0_0_60px_-10px_rgba(220,38,38,0.8)] active:scale-95 animate-in fade-in zoom-in-95 duration-700 [animation-delay:900ms]"
+                        className="px-4 py-2 text-white font-semibold bg-slate-800/80 rounded-full hover:bg-slate-700 transition-colors"
                     >
-                        <Sparkles className="w-6 h-6" />
-                        Start Creating
-                        <ArrowRight className="w-6 h-6 group-hover:translate-x-1 transition-transform" />
+                        Create
                     </button>
+                    <button className="px-4 py-2 text-slate-300 font-medium hover:text-white transition-colors">
+                        Gallery
+                    </button>
+                    <button className="px-4 py-2 text-slate-300 font-medium hover:text-white transition-colors">
+                        Pricing
+                    </button>
+                    <button className="px-4 py-2 text-slate-300 font-medium hover:text-white transition-colors">
+                        Sign In
+                    </button>
+                </nav>
+
+                {/* Mobile Menu Button */}
+                <button className="md:hidden p-2 text-slate-300 hover:text-white">
+                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                    </svg>
+                </button>
+            </header>
+
+            {/* Hero Section */}
+            <section className="relative flex flex-col lg:flex-row items-center justify-between px-8 lg:px-16 py-16 lg:py-24 gap-12 max-w-7xl mx-auto">
+                {/* Left Side - Logo and Tagline */}
+                <div className="flex flex-col lg:flex-row items-center gap-8 lg:gap-12 animate-in fade-in slide-in-from-left-8 duration-700">
+                    {/* Large Logo */}
+                    <div className="relative group">
+                        <div className="absolute inset-0 bg-red-500/20 blur-3xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-700"></div>
+                        <img
+                            src="/saucy-logo.jpg"
+                            alt="Saucy"
+                            className="w-40 h-40 lg:w-48 lg:h-48 relative z-10 rounded-3xl shadow-2xl shadow-red-500/10"
+                        />
+                    </div>
+
+                    {/* Tagline */}
+                    <div className="text-center lg:text-left space-y-4">
+                        <h1 className="text-4xl lg:text-5xl font-black">
+                            <span className="bg-clip-text text-transparent bg-gradient-to-r from-red-500 to-orange-400">Saucy:</span>
+                            <span className="text-white"> The Ultimate</span>
+                            <br />
+                            <span className="text-white">Creative Media</span>
+                            <br />
+                            <span className="text-white">Generator</span>
+                        </h1>
+
+                        <button
+                            onClick={onGetStarted}
+                            className="group inline-flex items-center gap-2 px-8 py-3 bg-slate-800 text-white text-lg font-semibold rounded-full hover:bg-slate-700 transition-all shadow-lg hover:shadow-xl active:scale-95"
+                        >
+                            Get Started
+                            <ChevronRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                        </button>
+                    </div>
                 </div>
 
-                {/* Scroll Indicator */}
-                <div className="absolute bottom-12 left-1/2 -translate-x-1/2 animate-bounce">
-                    <div className="w-6 h-10 border-2 border-red-500/50 rounded-full flex justify-center pt-2">
-                        <div className="w-1.5 h-3 bg-red-500 rounded-full animate-pulse"></div>
+                {/* Right Side - App Preview */}
+                <div className="relative animate-in fade-in slide-in-from-right-8 duration-700 [animation-delay:200ms]">
+                    <div className="bg-slate-900/50 backdrop-blur-xl border border-slate-800 rounded-3xl p-6 shadow-2xl max-w-md">
+                        {/* Mini App Preview */}
+                        <div className="space-y-4">
+                            {/* Toggle */}
+                            <div className="flex items-center justify-center gap-4">
+                                <span className="text-sm text-slate-400">Sticker</span>
+                                <div className="w-12 h-6 bg-red-500 rounded-full flex items-center px-1">
+                                    <div className="w-4 h-4 bg-white rounded-full ml-auto"></div>
+                                </div>
+                                <span className="text-sm text-white font-medium">Animation</span>
+                            </div>
+
+                            {/* Media Slots */}
+                            <div className="grid grid-cols-3 gap-3">
+                                {[1, 2, 3].map((num) => (
+                                    <div key={num} className="bg-slate-800/50 border border-slate-700 rounded-xl p-3 text-center">
+                                        <p className="text-xs text-slate-500 mb-2">Media {num}</p>
+                                        <div className="aspect-square bg-slate-900/50 rounded-lg flex items-center justify-center">
+                                            <span className="text-2xl">🖼️</span>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+
+                            {/* Generate Button Preview */}
+                            <button className="w-full py-3 bg-gradient-to-r from-red-600 to-red-500 text-white font-semibold rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-red-500/25">
+                                <Sparkles className="w-5 h-5" />
+                                Generate Sauce
+                                <span className="text-lg">🔥</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            {/* Recent Saucy Creations */}
+            <section className="relative py-16 px-8 border-t border-slate-800/50">
+                <div className="max-w-6xl mx-auto">
+                    <h2 className="text-2xl font-bold text-center mb-12 text-slate-300">
+                        Recent Saucy Creations
+                    </h2>
+
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+                        {recentCreations.map((creation, index) => (
+                            <div
+                                key={creation.id}
+                                className="group relative bg-slate-900/50 backdrop-blur-xl border border-slate-800 rounded-2xl p-4 hover:border-red-500/50 transition-all duration-300 hover:shadow-[0_0_30px_-10px_rgba(220,38,38,0.3)] animate-in fade-in slide-in-from-bottom-4 duration-500"
+                                style={{ animationDelay: `${index * 100}ms` }}
+                            >
+                                {/* Type Badge */}
+                                <div className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium mb-3 ${creation.type === 'Sticker'
+                                        ? 'bg-red-500/20 text-red-400'
+                                        : 'bg-orange-500/20 text-orange-400'
+                                    }`}>
+                                    {creation.type === 'Sticker' ? <Sparkles className="w-3 h-3" /> : <Zap className="w-3 h-3" />}
+                                    {creation.type}
+                                </div>
+
+                                {/* Preview */}
+                                <div className="aspect-square bg-slate-800/50 rounded-xl flex items-center justify-center mb-3 group-hover:scale-105 transition-transform duration-300">
+                                    <span className="text-5xl">{creation.emoji}</span>
+                                </div>
+
+                                {/* Label */}
+                                <p className="text-sm text-slate-400 text-center">{creation.label}</p>
+                            </div>
+                        ))}
                     </div>
                 </div>
             </section>
 
             {/* Features Section */}
-            <section className="relative py-32 px-6 bg-gradient-to-b from-black via-slate-950 to-black">
+            <section className="relative py-20 px-8 bg-gradient-to-b from-transparent via-slate-950/50 to-transparent">
                 <div className="max-w-6xl mx-auto">
-                    <h2 className="text-5xl md:text-6xl font-black text-center mb-20 bg-clip-text text-transparent bg-gradient-to-r from-white to-red-500">
+                    <h2 className="text-4xl md:text-5xl font-black text-center mb-16 bg-clip-text text-transparent bg-gradient-to-r from-white to-red-500">
                         Built for creators who demand perfection
                     </h2>
 
@@ -116,46 +217,36 @@ const IntroPage: React.FC<IntroPageProps> = ({ onGetStarted }) => {
             </section>
 
             {/* CTA Section */}
-            <section className="relative py-32 px-6">
-                <div className="absolute inset-0 bg-gradient-to-t from-green-950/20 via-transparent to-transparent"></div>
+            <section className="relative py-24 px-8">
                 <div className="relative max-w-4xl mx-auto text-center space-y-8">
-                    <h2 className="text-5xl md:text-6xl font-black bg-clip-text text-transparent bg-gradient-to-r from-white to-red-500">
+                    <h2 className="text-4xl md:text-5xl font-black bg-clip-text text-transparent bg-gradient-to-r from-white to-red-500">
                         Ready to start creating?
                     </h2>
                     <p className="text-xl text-slate-400 max-w-2xl mx-auto">
                         Join creators who trust Saucy to deliver pixel-perfect results every time.
                     </p>
-                    <div className="flex flex-col sm:flex-row gap-4 justify-center items-center pt-4">
-                        <button
-                            onClick={onGetStarted}
-                            className="group inline-flex items-center gap-3 px-10 py-5 bg-red-600 text-white text-xl font-black rounded-[2rem] hover:bg-red-500 transition-all shadow-[0_0_40px_-10px_rgba(220,38,38,0.6)] hover:shadow-[0_0_60px_-10px_rgba(220,38,38,0.8)] active:scale-95"
-                        >
-                            Launch Saucy
-                            <ArrowRight className="w-6 h-6 group-hover:translate-x-1 transition-transform" />
-                        </button>
-                    </div>
-
-                    {/* Trust Indicators */}
-                    <div className="pt-12 flex flex-wrap justify-center gap-8 text-sm text-slate-500">
-                        <div className="flex items-center gap-2">
-                            <CheckCircle2 className="w-4 h-4 text-red-500" />
-                            <span>Powered by Gemini Pro</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                            <CheckCircle2 className="w-4 h-4 text-red-500" />
-                            <span>No watermarks</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                            <CheckCircle2 className="w-4 h-4 text-red-500" />
-                            <span>Instant downloads</span>
-                        </div>
-                    </div>
+                    <button
+                        onClick={onGetStarted}
+                        className="group inline-flex items-center gap-3 px-10 py-5 bg-gradient-to-r from-red-600 to-red-500 text-white text-xl font-black rounded-full hover:from-red-500 hover:to-red-400 transition-all shadow-[0_0_40px_-10px_rgba(220,38,38,0.6)] hover:shadow-[0_0_60px_-10px_rgba(220,38,38,0.8)] active:scale-95"
+                    >
+                        <Sparkles className="w-6 h-6" />
+                        Launch Saucy
+                        <ArrowRight className="w-6 h-6 group-hover:translate-x-1 transition-transform" />
+                    </button>
                 </div>
             </section>
 
             {/* Footer */}
-            <footer className="border-t border-slate-900 py-8 px-6 text-center text-sm text-slate-600">
-                <p>Saucy © 2026. Powered by Google Gemini AI.</p>
+            <footer className="border-t border-slate-800/50 py-8 px-8">
+                <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
+                    <p className="text-sm text-slate-600">Saucy © 2026. Powered by Google Gemini AI.</p>
+                    <div className="flex items-center gap-6 text-sm text-slate-500">
+                        <a href="#" className="hover:text-white transition-colors">About Us</a>
+                        <a href="#" className="hover:text-white transition-colors">Contact</a>
+                        <a href="#" className="hover:text-white transition-colors">Terms of Service</a>
+                        <a href="#" className="hover:text-white transition-colors">Privacy Policy</a>
+                    </div>
+                </div>
             </footer>
         </div>
     );

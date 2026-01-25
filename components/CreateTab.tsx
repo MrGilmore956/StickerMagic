@@ -10,10 +10,14 @@ import {
     Download,
     MessageCircle,
     Lightbulb,
+    Library,
 } from "lucide-react";
-import { removeTextMagic, askSaucy } from "../services/geminiService";
+import { removeTextMagic, askSaucy, refineSuggestion } from "../services/geminiService";
 import { reimagineAsSticker } from "../services/gifFrameAnalyzer";
 import { generateAnimation } from "../services/veoService";
+import { addToLibrary } from "../services/libraryService";
+import LibraryModal from "./LibraryModal";
+import CreativeDirectorPanel from "./CreativeDirectorPanel";
 
 type OutputMode = "sticker" | "animation";
 type StickerStyle = "cartoon" | "emoji" | "chibi" | "minimalist";
@@ -29,8 +33,8 @@ interface UploadedMedia {
 export default function CreateTab() {
     // Upload state
     const [uploadedMedia, setUploadedMedia] = useState<UploadedMedia[]>([]);
-    const [urlInput, setUrlInput] = useState("");
-    const [isLoadingUrl, setIsLoadingUrl] = useState(false);
+    const [urlInputs, setUrlInputs] = useState<string[]>(["", "", ""]); // One per slot
+    const [loadingSlot, setLoadingSlot] = useState<number | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     // Mode & options state
@@ -38,7 +42,7 @@ export default function CreateTab() {
     const [stickerStyle, setStickerStyle] = useState<StickerStyle>("cartoon");
     const [prompt, setPrompt] = useState("");
     const [aspectRatio, setAspectRatio] = useState("1:1");
-    const [resolution, setResolution] = useState("2K");
+    const [resolution, setResolution] = useState("1024"); // High Quality default
     const [showOptionsModal, setShowOptionsModal] = useState(false);
 
     // Processing state
@@ -52,6 +56,9 @@ export default function CreateTab() {
     const [cleanResult, setCleanResult] = useState<string | null>(null);
     const [creativeResult, setCreativeResult] = useState<string | null>(null);
     const [animationResult, setAnimationResult] = useState<string | null>(null);
+
+    // Library modal
+    const [showLibraryModal, setShowLibraryModal] = useState(false);
 
     // Auto-regenerate suggestion when media changes
     const regenerateSuggestion = useCallback(async () => {
@@ -96,7 +103,7 @@ export default function CreateTab() {
 
             for (const file of files) {
                 const reader = new FileReader();
-                reader.onload = (event) => {
+                reader.onload = async (event) => {
                     const dataUrl = event.target?.result as string;
                     const base64 = dataUrl.split(",")[1];
                     const newMedia: UploadedMedia = {
@@ -107,6 +114,11 @@ export default function CreateTab() {
                         name: file.name,
                     };
                     setUploadedMedia((prev) => [...prev, newMedia]);
+
+                    // Auto-save to library (non-blocking)
+                    addToLibrary(file.name, dataUrl, 'upload', file.type).catch(err => {
+                        console.log('Library save skipped:', err.message);
+                    });
                 };
                 reader.readAsDataURL(file);
             }
@@ -115,19 +127,20 @@ export default function CreateTab() {
         []
     );
 
-    // URL fetch handler
-    const fetchFromUrl = async () => {
-        if (!urlInput.trim()) return;
-        setIsLoadingUrl(true);
+    // URL fetch handler for specific slot
+    const fetchFromUrl = async (slotIndex: number) => {
+        const url = urlInputs[slotIndex];
+        if (!url.trim()) return;
+        setLoadingSlot(slotIndex);
         setError(null);
 
         try {
-            const response = await fetch(urlInput);
+            const response = await fetch(url);
             if (!response.ok) throw new Error("Failed to fetch image");
 
             const blob = await response.blob();
             const reader = new FileReader();
-            reader.onload = (e) => {
+            reader.onload = async (e) => {
                 const dataUrl = e.target?.result as string;
                 const base64 = dataUrl.split(",")[1];
                 const newMedia: UploadedMedia = {
@@ -135,16 +148,40 @@ export default function CreateTab() {
                     preview: dataUrl,
                     base64,
                     mimeType: blob.type || "image/png",
-                    name: urlInput.split("/").pop() || "image",
+                    name: url.split("/").pop() || "image",
                 };
-                setUploadedMedia((prev) => [...prev, newMedia]);
-                setUrlInput("");
+
+                // Insert at the correct slot position
+                setUploadedMedia((prev) => {
+                    const updated = [...prev];
+                    // If slot already has media, replace it; otherwise add
+                    if (slotIndex < updated.length) {
+                        updated[slotIndex] = newMedia;
+                    } else {
+                        updated.push(newMedia);
+                    }
+                    return updated;
+                });
+
+                // Clear this slot's URL input
+                setUrlInputs((prev) => {
+                    const updated = [...prev];
+                    updated[slotIndex] = "";
+                    return updated;
+                });
+
+                // Auto-save to library (non-blocking)
+                const isGiphy = url.toLowerCase().includes('giphy.com');
+                const source = isGiphy ? 'giphy' : 'url';
+                addToLibrary(url, dataUrl, source, blob.type || 'image/png').catch(err => {
+                    console.log('Library save skipped:', err.message);
+                });
             };
             reader.readAsDataURL(blob);
         } catch (err: any) {
             setError("Failed to load image. Try downloading and uploading directly.");
         } finally {
-            setIsLoadingUrl(false);
+            setLoadingSlot(null);
         }
     };
 
@@ -315,13 +352,20 @@ export default function CreateTab() {
                                                         <LinkIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500" />
                                                         <input
                                                             type="text"
-                                                            value={slotIndex === 0 ? urlInput : ""}
-                                                            onChange={(e) => slotIndex === 0 && setUrlInput(e.target.value)}
-                                                            onKeyDown={(e) => e.key === "Enter" && slotIndex === 0 && fetchFromUrl()}
+                                                            value={urlInputs[slotIndex]}
+                                                            onChange={(e) => {
+                                                                const newInputs = [...urlInputs];
+                                                                newInputs[slotIndex] = e.target.value;
+                                                                setUrlInputs(newInputs);
+                                                            }}
+                                                            onKeyDown={(e) => e.key === "Enter" && fetchFromUrl(slotIndex)}
                                                             placeholder="Paste URL..."
                                                             className="w-full pl-9 pr-3 py-2 bg-[#1a1a1f] border border-white/5 rounded-lg text-xs text-white placeholder:text-slate-500 focus:outline-none focus:border-red-500/50"
-                                                            disabled={slotIndex !== 0 || uploadedMedia.length > slotIndex}
+                                                            disabled={loadingSlot === slotIndex}
                                                         />
+                                                        {loadingSlot === slotIndex && (
+                                                            <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-red-400 animate-spin" />
+                                                        )}
                                                     </div>
                                                     <div
                                                         onClick={() => slotIndex === uploadedMedia.length && fileInputRef.current?.click()}
@@ -344,6 +388,15 @@ export default function CreateTab() {
                                 onChange={handleFileUpload}
                                 className="hidden"
                             />
+
+                            {/* Browse Library Button */}
+                            <button
+                                onClick={() => setShowLibraryModal(true)}
+                                className="w-full mt-3 py-2.5 bg-[#1a1a1f] border border-white/10 hover:border-red-500/50 text-white rounded-xl font-medium text-sm flex items-center justify-center gap-2 hover:bg-[#222] transition-all"
+                            >
+                                <Library className="w-4 h-4 text-red-400" />
+                                Browse Library
+                            </button>
                         </div>
 
                         {/* RIGHT COLUMN - Preview / Gallery */}
@@ -400,11 +453,16 @@ export default function CreateTab() {
                                     </div>
                                 ) : uploadedMedia.length > 0 ? (
                                     <div className="flex-1 flex flex-col items-center justify-center p-6">
-                                        <img
-                                            src={uploadedMedia[0].preview}
-                                            alt="Preview"
-                                            className="max-w-full max-h-64 rounded-xl border border-white/10 mb-3"
-                                        />
+                                        <div className={`grid gap-2 mb-3 ${uploadedMedia.length === 1 ? 'grid-cols-1' : uploadedMedia.length === 2 ? 'grid-cols-2' : 'grid-cols-3'}`}>
+                                            {uploadedMedia.map((media, idx) => (
+                                                <img
+                                                    key={media.id}
+                                                    src={media.preview}
+                                                    alt={`Preview ${idx + 1}`}
+                                                    className="w-full max-h-48 object-cover rounded-xl border border-white/10"
+                                                />
+                                            ))}
+                                        </div>
                                         <p className="text-sm text-slate-400 text-center">
                                             Ready to generate!
                                         </p>
@@ -416,75 +474,22 @@ export default function CreateTab() {
                                 )}
                             </div>
 
-                            {/* Prompt Section */}
+                            {/* Creative Director Panel */}
                             <div className="bg-[#111] rounded-2xl border border-white/5 p-5">
-                                <div className="flex justify-between items-center mb-3">
-                                    <label className="text-sm font-medium text-slate-300">
-                                        Prompt <span className="text-red-400">*</span>
-                                    </label>
-                                </div>
-
-                                <textarea
-                                    value={prompt}
-                                    onChange={(e) => setPrompt(e.target.value)}
-                                    placeholder={
-                                        outputMode === "sticker"
-                                            ? "Describe what you want to create in detail... Be specific about style, mood, colors..."
-                                            : "Describe the animation scene... Include mood, actions, and visual style..."
-                                    }
-                                    className="w-full h-24 p-4 bg-[#1a1a1f] border border-white/5 rounded-xl text-sm text-white placeholder:text-slate-500 resize-none focus:outline-none focus:border-red-500/50"
-                                    maxLength={2000}
+                                <CreativeDirectorPanel
+                                    images={uploadedMedia.map(m => ({ base64: m.preview, mimeType: m.mimeType }))}
+                                    mode={outputMode}
+                                    initialSuggestion={aiSuggestion}
+                                    isLoading={isBrainstorming}
+                                    onPromptChange={(newPrompt) => setPrompt(newPrompt)}
+                                    onRefine={async (feedback) => {
+                                        const imageData = uploadedMedia.map(m => ({
+                                            base64: m.base64,
+                                            mimeType: m.mimeType
+                                        }));
+                                        return await refineSuggestion(prompt, feedback, imageData, outputMode);
+                                    }}
                                 />
-                                <div className="flex justify-between items-center mt-2">
-                                    <div className="flex items-start gap-2 text-xs text-slate-500">
-                                        <Sparkles className="w-3 h-3 mt-0.5 text-red-400" />
-                                        <span>Be detailed for better results</span>
-                                    </div>
-                                    <span className="text-xs text-slate-500">
-                                        {prompt.length} / 2000
-                                    </span>
-                                </div>
-
-                                {/* AI Suggestion */}
-                                {aiSuggestion && (
-                                    <div className="mt-4 p-4 bg-red-500/10 border border-red-500/20 rounded-xl">
-                                        <div className="flex items-start gap-3">
-                                            <Lightbulb className="w-4 h-4 text-red-400 mt-0.5 flex-shrink-0" />
-                                            <div className="flex-1">
-                                                <p className="text-sm text-red-200">{aiSuggestion}</p>
-                                                <div className="flex gap-2 mt-3">
-                                                    <button
-                                                        onClick={applySuggestion}
-                                                        className="px-3 py-1.5 bg-red-600 text-white rounded-lg text-xs font-medium hover:bg-red-500"
-                                                    >
-                                                        Use This
-                                                    </button>
-                                                    <button
-                                                        onClick={regenerateSuggestion}
-                                                        disabled={isBrainstorming}
-                                                        className="px-3 py-1.5 bg-white/5 border border-white/10 text-slate-300 rounded-lg text-xs font-medium hover:bg-white/10 disabled:opacity-50"
-                                                    >
-                                                        {isBrainstorming ? "Thinking..." : "Try Another"}
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                )}
-
-                                {/* Ask Sizzle Button */}
-                                <button
-                                    onClick={handleBrainstorm}
-                                    disabled={isBrainstorming}
-                                    className="mt-4 w-full flex items-center justify-center gap-2 px-4 py-3 bg-[#1a1a1f] border border-white/5 rounded-xl text-sm font-medium text-slate-300 hover:bg-[#222] hover:text-white disabled:opacity-50 transition-all"
-                                >
-                                    {isBrainstorming ? (
-                                        <Loader2 className="w-4 h-4 animate-spin" />
-                                    ) : (
-                                        <MessageCircle className="w-4 h-4" />
-                                    )}
-                                    {prompt.trim() ? "Refine My Idea" : "Ask Saucy for Ideas"}
-                                </button>
                             </div>
 
                             {/* Error Message */}
@@ -529,36 +534,29 @@ export default function CreateTab() {
 
                         <div className="space-y-4">
                             <div>
-                                <label className="block text-sm font-medium text-slate-300 mb-2">Aspect Ratio</label>
-                                <div className="grid grid-cols-3 gap-2">
-                                    {["1:1", "16:9", "9:16"].map((ratio) => (
+                                <label className="block text-sm font-medium text-slate-300 mb-3">Export for</label>
+                                <div className="space-y-2">
+                                    {[
+                                        { id: "slack", label: "Slack / Discord", size: "128×128", icon: "💬" },
+                                        { id: "imessage", label: "iMessage", size: "300×300", icon: "📱" },
+                                        { id: "highquality", label: "High Quality", size: "1024×1024", icon: "✨" },
+                                    ].map((preset) => (
                                         <button
-                                            key={ratio}
-                                            onClick={() => setAspectRatio(ratio)}
-                                            className={`py-3 rounded-xl text-sm font-medium transition-all ${aspectRatio === ratio
-                                                ? "bg-transparent border-2 border-red-500 text-red-400"
+                                            key={preset.id}
+                                            onClick={() => {
+                                                setAspectRatio("1:1");
+                                                setResolution(preset.id === "slack" ? "128" : preset.id === "imessage" ? "300" : "1024");
+                                            }}
+                                            className={`w-full py-3 px-4 rounded-xl text-left transition-all flex items-center justify-between ${resolution === (preset.id === "slack" ? "128" : preset.id === "imessage" ? "300" : "1024")
+                                                ? "bg-transparent border-2 border-red-500 text-white"
                                                 : "bg-[#1a1a1f] text-slate-400 hover:bg-[#222] border border-white/5"
                                                 }`}
                                         >
-                                            {ratio}
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
-
-                            <div>
-                                <label className="block text-sm font-medium text-slate-300 mb-2">Resolution</label>
-                                <div className="grid grid-cols-3 gap-2">
-                                    {["1K", "2K", "4K"].map((res) => (
-                                        <button
-                                            key={res}
-                                            onClick={() => setResolution(res)}
-                                            className={`py-3 rounded-xl text-sm font-medium transition-all ${resolution === res
-                                                ? "bg-transparent border-2 border-red-500 text-red-400"
-                                                : "bg-[#1a1a1f] text-slate-400 hover:bg-[#222] border border-white/5"
-                                                }`}
-                                        >
-                                            {res}
+                                            <span className="flex items-center gap-3">
+                                                <span className="text-lg">{preset.icon}</span>
+                                                <span className="font-medium">{preset.label}</span>
+                                            </span>
+                                            <span className="text-sm text-slate-500">{preset.size}</span>
                                         </button>
                                     ))}
                                 </div>
@@ -585,6 +583,22 @@ export default function CreateTab() {
                     </div>
                 </div>
             )}
+
+            {/* Library Modal */}
+            <LibraryModal
+                isOpen={showLibraryModal}
+                onClose={() => setShowLibraryModal(false)}
+                onSelect={(url, base64) => {
+                    const newMedia: UploadedMedia = {
+                        id: crypto.randomUUID(),
+                        preview: base64,
+                        base64: base64.split(",")[1] || base64,
+                        mimeType: "image/png",
+                        name: "library-item",
+                    };
+                    setUploadedMedia((prev) => [...prev, newMedia]);
+                }}
+            />
         </>
     );
 }

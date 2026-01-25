@@ -48,11 +48,13 @@ export const extractKeyFrame = (base64Data: string): Promise<string> => {
  * @param prompt - Description of the desired animation
  * @param referenceImages - Array of reference images (up to 3)
  * @param onProgress - Optional callback for progress updates
+ * @param aspectRatio - Aspect ratio for the video (16:9 or 9:16)
  */
 export const generateAnimation = async (
     prompt: string,
     referenceImages: { base64: string; mimeType: string }[],
-    onProgress?: (status: string) => void
+    onProgress?: (status: string) => void,
+    aspectRatio: "16:9" | "9:16" = "16:9"
 ): Promise<VeoGenerationResult> => {
     const { key, isDemo } = await getSaucyApiKey();
 
@@ -69,16 +71,20 @@ export const generateAnimation = async (
     try {
         const ai = new GoogleGenAI({ apiKey: key });
 
-        // Build reference images array for Veo
-        const references: ReferenceImage[] = referenceImages.slice(0, 3).map((img) => ({
-            image: {
-                imageBytes: img.base64.includes(",") ? img.base64.split(",")[1] : img.base64,
-                mimeType: img.mimeType || "image/png",
-            },
-            referenceType: "asset" as const,
-        }));
+        // Build reference images array for Veo - up to 3 asset images
+        const references: ReferenceImage[] = referenceImages.slice(0, 3).map((img, index) => {
+            console.log(`Processing reference image ${index + 1}/${Math.min(referenceImages.length, 3)}`);
+            return {
+                image: {
+                    imageBytes: img.base64.includes(",") ? img.base64.split(",")[1] : img.base64,
+                    mimeType: img.mimeType || "image/png",
+                },
+                referenceType: "asset" as const,
+            };
+        });
 
-        onProgress?.("Starting video generation with Veo 3.1...");
+        console.log(`Veo generation starting with ${references.length} reference image(s)`);
+        onProgress?.(`Starting video generation with ${references.length} reference image(s)...`);
 
         // Start the video generation
         let operation = await (ai.models as any).generateVideos({
@@ -86,7 +92,7 @@ export const generateAnimation = async (
             prompt: prompt,
             config: {
                 referenceImages: references,
-                aspectRatio: "1:1", // Square for stickers/emojis
+                aspectRatio: aspectRatio, // Use the passed aspect ratio
                 numberOfVideos: 1,
             },
         });
