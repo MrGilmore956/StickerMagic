@@ -12,11 +12,43 @@ service cloud.firestore {
       }
     }
     
-    // GIF Library - public read, anyone can write (for community contribution)
+    // Legacy GIF Library - public read, anyone can write (for community contribution)
     match /gif_library/{itemId} {
       allow read: if true;
       allow create: if true;
       allow update, delete: if request.auth != null;
+    }
+    
+    // New Library GIFs - public read for approved, auth required for admin operations
+    match /library_gifs/{gifId} {
+      // Anyone can read approved GIFs
+      allow read: if resource.data.status == 'approved' || request.auth != null;
+      // Only authenticated users can create/update/delete
+      allow create, update, delete: if request.auth != null;
+    }
+    
+    // GIF of the Day - public read, admin write
+    match /gif_of_the_day/{dayId} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+    
+    // Analytics - public write (for tracking), auth required for full read
+    match /analytics/{document=**} {
+      allow read: if true;
+      allow write: if true;
+    }
+    
+    // Analytics Searches - track search terms
+    match /analytics_searches/{searchTerm} {
+      allow read: if true;
+      allow write: if true;
+    }
+    
+    // Analytics Daily - daily stats
+    match /analytics_daily/{date} {
+      allow read: if true;
+      allow write: if true;
     }
   }
 }

@@ -54,7 +54,7 @@ export const generateAnimation = async (
     prompt: string,
     referenceImages: { base64: string; mimeType: string }[],
     onProgress?: (status: string) => void,
-    aspectRatio: "16:9" | "9:16" = "16:9"
+    aspectRatio: "16:9" | "9:16" | "1:1" = "16:9"
 ): Promise<VeoGenerationResult> => {
     const { key, isDemo } = await getSaucyApiKey();
 
@@ -206,3 +206,215 @@ export const videoToGif = async (
         video.load();
     });
 };
+
+// ============================================
+// Gemini-powered AI Helper Functions
+// ============================================
+
+/**
+ * Use Gemini to enhance/refine a video generation prompt
+ */
+export async function enhancePromptWithGemini(prompt: string): Promise<string> {
+    const { key, isDemo } = await getSaucyApiKey();
+
+    if (isDemo || !key) {
+        return prompt;
+    }
+
+    try {
+        const genAI = new GoogleGenAI({ apiKey: key });
+
+        const response = await genAI.models.generateContent({
+            model: 'gemini-2.0-flash',
+            contents: `You are a video prompt engineer. Enhance this prompt for AI video generation, making it more descriptive and visually specific. Keep it under 200 characters.
+
+Original prompt: "${prompt}"
+
+Enhanced prompt:`,
+        });
+
+        const enhanced = response.text?.trim() || prompt;
+        console.log(`Prompt enhanced: "${prompt}" -> "${enhanced}"`);
+        return enhanced;
+
+    } catch (error) {
+        console.warn('Prompt enhancement failed, using original:', error);
+        return prompt;
+    }
+}
+
+/**
+ * Generate multiple GIF ideas using Gemini
+ */
+export async function generateGifIdeas(
+    topic: string,
+    count: number = 5,
+    style?: 'reaction' | 'meme' | 'aesthetic' | 'funny'
+): Promise<string[]> {
+    const { key, isDemo } = await getSaucyApiKey();
+
+    if (isDemo || !key) {
+        return getDefaultIdeas(topic, count);
+    }
+
+    try {
+        const genAI = new GoogleGenAI({ apiKey: key });
+
+        const styleInstruction = style ? `Style: ${style} GIFs.` : '';
+
+        const response = await genAI.models.generateContent({
+            model: 'gemini-2.0-flash',
+            contents: `Generate ${count} creative GIF ideas for the topic: "${topic}". ${styleInstruction}
+
+Each idea should be a short, vivid description that would make a great looping GIF animation.
+Format: Return only the ideas, one per line, no numbering.
+
+Ideas:`,
+        });
+
+        const text = response.text || '';
+        const ideas = text.split('\n')
+            .map(line => line.trim())
+            .filter(line => line.length > 5 && !line.startsWith('-'))
+            .slice(0, count);
+
+        return ideas.length > 0 ? ideas : getDefaultIdeas(topic, count);
+
+    } catch (error) {
+        console.error('Failed to generate ideas:', error);
+        return getDefaultIdeas(topic, count);
+    }
+}
+
+/**
+ * Generate tags for a GIF using Gemini
+ */
+export async function generateTags(description: string): Promise<string[]> {
+    const { key, isDemo } = await getSaucyApiKey();
+
+    if (isDemo || !key) {
+        return extractBasicTags(description);
+    }
+
+    try {
+        const genAI = new GoogleGenAI({ apiKey: key });
+
+        const response = await genAI.models.generateContent({
+            model: 'gemini-2.0-flash',
+            contents: `Generate 8-10 relevant search tags for this GIF description. Include emotion words, actions, and common search terms.
+
+Description: "${description}"
+
+Return only the tags, comma-separated, lowercase:`,
+        });
+
+        const text = response.text || '';
+        const tags = text.split(',')
+            .map(tag => tag.trim().toLowerCase().replace(/[^a-z0-9\s]/g, ''))
+            .filter(tag => tag.length > 1 && tag.length < 20);
+
+        return tags.length > 3 ? tags : extractBasicTags(description);
+
+    } catch (error) {
+        console.warn('Tag generation failed:', error);
+        return extractBasicTags(description);
+    }
+}
+
+/**
+ * Classify content rating using Gemini
+ */
+export async function classifyContentRating(
+    description: string
+): Promise<'pg' | 'pg13' | 'r' | 'unhinged'> {
+    const { key, isDemo } = await getSaucyApiKey();
+
+    if (isDemo || !key) {
+        return 'pg';
+    }
+
+    try {
+        const genAI = new GoogleGenAI({ apiKey: key });
+
+        const response = await genAI.models.generateContent({
+            model: 'gemini-2.0-flash',
+            contents: `Classify the content rating for this GIF description. Choose exactly one:
+- pg: Family-friendly, no adult content
+- pg13: Mild crude humor, mild language
+- r: Strong language, crude humor, suggestive content
+- unhinged: Inappropriate workplace content, wild humor
+
+Description: "${description}"
+
+Rating (one word only):`,
+        });
+
+        const rating = response.text?.toLowerCase().trim() || 'pg';
+
+        if (['pg', 'pg13', 'r', 'unhinged'].includes(rating)) {
+            return rating as 'pg' | 'pg13' | 'r' | 'unhinged';
+        }
+
+        return 'pg';
+
+    } catch (error) {
+        console.warn('Rating classification failed:', error);
+        return 'pg';
+    }
+}
+
+/**
+ * Generate a title for a GIF
+ */
+export async function generateTitle(description: string): Promise<string> {
+    const { key, isDemo } = await getSaucyApiKey();
+
+    if (isDemo || !key) {
+        return description.split(' ').slice(0, 3).join(' ');
+    }
+
+    try {
+        const genAI = new GoogleGenAI({ apiKey: key });
+
+        const response = await genAI.models.generateContent({
+            model: 'gemini-2.0-flash',
+            contents: `Create a short, catchy title (3-5 words) for this GIF:
+
+Description: "${description}"
+
+Title:`,
+        });
+
+        return response.text?.trim() || description.split(' ').slice(0, 3).join(' ');
+
+    } catch (error) {
+        console.warn('Title generation failed:', error);
+        return description.split(' ').slice(0, 3).join(' ');
+    }
+}
+
+// Helper functions
+
+function getDefaultIdeas(topic: string, count: number): string[] {
+    const templates = [
+        `${topic} celebration dance`,
+        `${topic} reaction face`,
+        `${topic} funny moment`,
+        `${topic} excited animation`,
+        `${topic} relatable moment`,
+        `${topic} dramatic reveal`,
+        `${topic} satisfying loop`,
+        `${topic} mood`,
+    ];
+    return templates.slice(0, count);
+}
+
+function extractBasicTags(description: string): string[] {
+    const words = description.toLowerCase()
+        .replace(/[^a-z0-9\s]/g, '')
+        .split(/\s+/)
+        .filter(w => w.length > 2 && w.length < 15);
+
+    // Deduplicate and limit
+    return [...new Set(words)].slice(0, 8);
+}

@@ -6,6 +6,9 @@ import {
     signInWithPopup,
     signOut as firebaseSignOut,
     onAuthStateChanged,
+    signInWithEmailAndPassword,
+    createUserWithEmailAndPassword,
+    sendPasswordResetEmail,
     User
 } from 'firebase/auth';
 import { auth, googleProvider } from './firebaseConfig';
@@ -40,6 +43,57 @@ export const signInWithGoogle = async (): Promise<User | null> => {
     } catch (error) {
         console.error('Google sign-in failed:', error);
         return null;
+    }
+};
+
+/**
+ * Sign in with Email/Password
+ */
+export const signInWithEmail = async (email: string, password: string): Promise<{ user: User | null; error: string | null }> => {
+    try {
+        const result = await signInWithEmailAndPassword(auth, email, password);
+        return { user: result.user, error: null };
+    } catch (error: any) {
+        console.error('Email sign-in failed:', error);
+        let errorMessage = 'Sign in failed. Please try again.';
+        if (error.code === 'auth/user-not-found') errorMessage = 'No account found with this email.';
+        if (error.code === 'auth/wrong-password') errorMessage = 'Incorrect password.';
+        if (error.code === 'auth/invalid-email') errorMessage = 'Invalid email address.';
+        if (error.code === 'auth/invalid-credential') errorMessage = 'Invalid email or password.';
+        return { user: null, error: errorMessage };
+    }
+};
+
+/**
+ * Sign up with Email/Password
+ */
+export const signUpWithEmail = async (email: string, password: string): Promise<{ user: User | null; error: string | null }> => {
+    try {
+        const result = await createUserWithEmailAndPassword(auth, email, password);
+        return { user: result.user, error: null };
+    } catch (error: any) {
+        console.error('Email sign-up failed:', error);
+        let errorMessage = 'Sign up failed. Please try again.';
+        if (error.code === 'auth/email-already-in-use') errorMessage = 'An account with this email already exists.';
+        if (error.code === 'auth/weak-password') errorMessage = 'Password should be at least 6 characters.';
+        if (error.code === 'auth/invalid-email') errorMessage = 'Invalid email address.';
+        return { user: null, error: errorMessage };
+    }
+};
+
+/**
+ * Send password reset email
+ */
+export const sendPasswordReset = async (email: string): Promise<{ success: boolean; error: string | null }> => {
+    try {
+        await sendPasswordResetEmail(auth, email);
+        return { success: true, error: null };
+    } catch (error: any) {
+        console.error('Password reset failed:', error);
+        let errorMessage = 'Failed to send reset email.';
+        if (error.code === 'auth/user-not-found') errorMessage = 'No account found with this email.';
+        if (error.code === 'auth/invalid-email') errorMessage = 'Invalid email address.';
+        return { success: false, error: errorMessage };
     }
 };
 

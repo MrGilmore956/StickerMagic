@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 50">
+  <defs>
+    <style>
+      .logo-text { font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 42px; font-weight: 700; font-style: italic; fill: #EF4444; }
+    </style>
+  </defs>
+  <!-- S with drip effect -->
+  <g>
+    <!-- Main S letter with drip -->
+    <path d="M12 35 Q8 35, 6 31 Q4 27, 6 23 Q8 19, 14 17 Q20 15, 20 11 Q20 7, 14 7 Q10 7, 8 10 L5 7 Q9 3, 16 3 Q25 3, 25 11 Q25 18, 17 21 Q10 24, 10 28 Q10 32, 16 32 Q20 32, 23 29 L26 33 Q21 38, 14 38 Q6 38, 6 31 Z" fill="#EF4444"/>
+    <!-- Drip from S -->
+    <path d="M8 35 Q6 35, 5 37 Q4 40, 5 44 Q6 48, 9 48 Q12 48, 12 44 Q12 40, 10 37 Q9 35, 8 35 Z" fill="#EF4444"/>
+    <circle cx="9" cy="52" r="3" fill="#EF4444"/>
+  </g>
+  <!-- aucy text -->
+  <text x="28" y="36" class="logo-text">aucy</text>
+</svg>

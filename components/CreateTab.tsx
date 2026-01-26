@@ -59,6 +59,7 @@ export default function CreateTab() {
 
     // Library modal
     const [showLibraryModal, setShowLibraryModal] = useState(false);
+    const [activeSlot, setActiveSlot] = useState<number | null>(null);
 
     // Auto-regenerate suggestion when media changes
     const regenerateSuggestion = useCallback(async () => {
@@ -94,12 +95,13 @@ export default function CreateTab() {
         prevMediaCount.current = uploadedMedia.length;
     }, [uploadedMedia.length, regenerateSuggestion]);
 
-    // File upload handler
+    // File upload handler - targets active slot or appends
     const handleFileUpload = useCallback(
         async (e: React.ChangeEvent<HTMLInputElement>) => {
             const fileList = e.target.files;
             if (!fileList) return;
             const files: File[] = Array.from(fileList);
+            const targetSlot = activeSlot;
 
             for (const file of files) {
                 const reader = new FileReader();
@@ -113,7 +115,28 @@ export default function CreateTab() {
                         mimeType: file.type,
                         name: file.name,
                     };
-                    setUploadedMedia((prev) => [...prev, newMedia]);
+
+                    setUploadedMedia((prev) => {
+                        // If targeting a specific slot, insert/replace there
+                        if (targetSlot !== null && targetSlot < 3) {
+                            const updated = [...prev];
+                            // Extend array if needed
+                            while (updated.length < targetSlot) {
+                                updated.push(null as any);
+                            }
+                            if (targetSlot < updated.length) {
+                                updated[targetSlot] = newMedia;
+                            } else {
+                                updated.push(newMedia);
+                            }
+                            return updated.filter(Boolean);
+                        }
+                        // Otherwise just append (up to 3 max)
+                        if (prev.length < 3) {
+                            return [...prev, newMedia];
+                        }
+                        return prev;
+                    });
 
                     // Auto-save to library (non-blocking)
                     addToLibrary(file.name, dataUrl, 'upload', file.type).catch(err => {
@@ -123,8 +146,9 @@ export default function CreateTab() {
                 reader.readAsDataURL(file);
             }
             e.target.value = "";
+            setActiveSlot(null);
         },
-        []
+        [activeSlot]
     );
 
     // URL fetch handler for specific slot
@@ -368,8 +392,11 @@ export default function CreateTab() {
                                                         )}
                                                     </div>
                                                     <div
-                                                        onClick={() => slotIndex === uploadedMedia.length && fileInputRef.current?.click()}
-                                                        className={`border border-dashed border-white/10 rounded-lg p-4 text-center cursor-pointer hover:border-red-500/50 hover:bg-red-500/5 transition-all aspect-square flex flex-col items-center justify-center ${slotIndex > uploadedMedia.length ? 'opacity-40 pointer-events-none' : ''}`}
+                                                        onClick={() => {
+                                                            setActiveSlot(slotIndex);
+                                                            fileInputRef.current?.click();
+                                                        }}
+                                                        className="border border-dashed border-white/10 rounded-lg p-4 text-center cursor-pointer hover:border-red-500/50 hover:bg-red-500/5 transition-all aspect-square flex flex-col items-center justify-center"
                                                     >
                                                         <Upload className="w-5 h-5 text-slate-500 mb-1" />
                                                         <span className="text-[10px] text-slate-500">Upload</span>
