@@ -18,8 +18,17 @@ import {
     Send,
     Eye,
     X,
-    Sparkles
+    Sparkles,
+    Globe,
+    Linkedin
 } from 'lucide-react';
+import {
+    getAllCampaigns,
+    saveCampaign,
+    deleteCampaign,
+    seedInitialCampaigns,
+    Campaign
+} from '../../services/campaignService';
 
 // Campaign types
 type Platform = 'twitter' | 'tiktok' | 'instagram' | 'linkedin';
@@ -66,19 +75,37 @@ const MOCK_CAMPAIGNS: CampaignPost[] = [
 ];
 
 export default function SocialCampaigns() {
-    const [campaigns, setCampaigns] = useState<CampaignPost[]>(MOCK_CAMPAIGNS);
-    const [loading, setLoading] = useState(false);
+    const [campaigns, setCampaigns] = useState<any[]>([]);
+    const [loading, setLoading] = useState(true);
     const [showCreateModal, setShowCreateModal] = useState(false);
-    const [selectedPost, setSelectedPost] = useState<CampaignPost | null>(null);
+    const [selectedPost, setSelectedPost] = useState<any | null>(null);
     const [processing, setProcessing] = useState<string | null>(null);
+
+    useEffect(() => {
+        loadCampaigns();
+    }, []);
+
+    const loadCampaigns = async () => {
+        setLoading(true);
+        try {
+            await seedInitialCampaigns();
+            const data = await getAllCampaigns();
+            // Map Campaign to CampaignPost format if needed, or unify types
+            // For now, let's just use them
+            setCampaigns(data as any);
+        } catch (error) {
+            console.error('Failed to load campaigns:', error);
+        } finally {
+            setLoading(false);
+        }
+    };
 
     const handleApprove = async (postId: string) => {
         setProcessing(postId);
         try {
-            // Simulate API call
-            await new Promise(resolve => setTimeout(resolve, 1000));
-            setCampaigns(campaigns.map(c =>
-                c.id === postId ? { ...c, status: 'approved' as CampaignStatus } : c
+            await saveCampaign({ id: postId, status: 'approved' as any });
+            setCampaigns(prev => prev.map(c =>
+                c.id === postId ? { ...c, status: 'approved' as any } : c
             ));
         } finally {
             setProcessing(null);
@@ -88,22 +115,39 @@ export default function SocialCampaigns() {
     const handleReject = async (postId: string) => {
         setProcessing(postId);
         try {
-            await new Promise(resolve => setTimeout(resolve, 500));
-            setCampaigns(campaigns.map(c =>
-                c.id === postId ? { ...c, status: 'rejected' as CampaignStatus } : c
+            await saveCampaign({ id: postId, status: 'rejected' as any });
+            setCampaigns(prev => prev.map(c =>
+                c.id === postId ? { ...c, status: 'rejected' as any } : c
             ));
         } finally {
             setProcessing(null);
         }
     };
 
-    const handlePost = async (postId: string) => {
-        setProcessing(postId);
+    const handlePost = async (post: any) => {
+        setProcessing(post.id);
         try {
-            // Simulate posting to social media
-            await new Promise(resolve => setTimeout(resolve, 2000));
-            setCampaigns(campaigns.map(c =>
-                c.id === postId ? { ...c, status: 'posted' as CampaignStatus, postedAt: new Date() } : c
+            const text = encodeURIComponent(post.postText || post.caption || '');
+            const url = encodeURIComponent(post.gifUrl);
+
+            let intentUrl = '';
+            if (post.platform === 'twitter') {
+                intentUrl = `https://twitter.com/intent/tweet?text=${text}&url=${url}`;
+            } else if (post.platform === 'linkedin') {
+                intentUrl = `https://www.linkedin.com/sharing/share-offsite/?url=${url}`;
+            } else {
+                // Fallback for Instagram/TikTok - Copy text and open site
+                await navigator.clipboard.writeText(post.postText || post.caption || '');
+                alert('Caption copied to clipboard! Opening platform...');
+                intentUrl = post.platform === 'instagram' ? 'https://instagram.com' : 'https://tiktok.com';
+            }
+
+            window.open(intentUrl, '_blank');
+
+            // Mark as posted
+            await saveCampaign({ id: post.id, status: 'posted' as any, postedAt: new Date() as any });
+            setCampaigns(prev => prev.map(c =>
+                c.id === post.id ? { ...c, status: 'posted' as any, postedAt: new Date() } : c
             ));
         } finally {
             setProcessing(null);
@@ -112,7 +156,12 @@ export default function SocialCampaigns() {
 
     const handleDelete = async (postId: string) => {
         if (!confirm('Delete this campaign post?')) return;
-        setCampaigns(campaigns.filter(c => c.id !== postId));
+        try {
+            await deleteCampaign(postId);
+            setCampaigns(prev => prev.filter(c => c.id !== postId));
+        } catch (e) {
+            console.error('Delete failed:', e);
+        }
     };
 
     const getPlatformIcon = (platform: Platform) => {
@@ -180,17 +229,20 @@ export default function SocialCampaigns() {
                                     src={post.gifUrl}
                                     alt=""
                                     className="w-24 h-24 object-cover rounded-lg flex-shrink-0"
+                                    onError={(e) => {
+                                        (e.target as HTMLImageElement).src = 'https://media.giphy.com/media/l0MYt5jPR6QX5pnqM/giphy.gif';
+                                    }}
                                 />
 
                                 {/* Content */}
-                                <div className="flex-1 min-w-0">
+                                <div className="flex-1 min-w-0 text-left">
                                     <div className="flex items-center gap-2 mb-2">
                                         {getPlatformIcon(post.platform)}
                                         <span className="text-sm text-slate-400 capitalize">{post.platform}</span>
                                     </div>
-                                    <p className="text-white mb-2">{post.caption}</p>
+                                    <p className="text-white mb-2 line-clamp-3">{post.postText || post.caption}</p>
                                     <div className="flex flex-wrap gap-1">
-                                        {post.hashtags.map((tag, i) => (
+                                        {(post.hashtags || []).map((tag: string, i: number) => (
                                             <span key={i} className="text-xs text-red-400">#{tag}</span>
                                         ))}
                                     </div>
@@ -251,9 +303,9 @@ export default function SocialCampaigns() {
                                     {getPlatformIcon(post.platform)}
                                     <span className="text-sm text-slate-400 capitalize">{post.platform}</span>
                                 </div>
-                                <p className="text-sm text-white line-clamp-2 mb-3">{post.caption}</p>
+                                <p className="text-sm text-white line-clamp-2 mb-3">{post.postText || post.caption}</p>
                                 <button
-                                    onClick={() => handlePost(post.id)}
+                                    onClick={() => handlePost(post)}
                                     disabled={processing === post.id}
                                     className="w-full py-2 bg-white/10 border border-white/20 rounded-lg font-semibold text-sm hover:bg-white/20 hover:border-red-500/50 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
                                 >

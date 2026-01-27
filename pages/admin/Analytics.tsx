@@ -16,16 +16,21 @@ import {
     ArrowDown,
     RefreshCw,
     Globe,
-    ExternalLink
+    ExternalLink,
+    Clock,
+    User as UserIcon,
+    Mail
 } from 'lucide-react';
 import {
     getAnalyticsStats,
     getTopSearches,
     getDailyStats,
     getTodayStats,
+    getRecentDownloads,
     AnalyticsStats,
     SearchTerm,
-    DailyStats
+    DailyStats,
+    DownloadEvent
 } from '../../services/analyticsService';
 import { getAllGifs } from '../../services/gifLibraryService';
 
@@ -37,6 +42,7 @@ export default function Analytics() {
     const [topSearches, setTopSearches] = useState<SearchTerm[]>([]);
     const [topGifs, setTopGifs] = useState<{ id: string; title: string; downloads: number; thumbnailUrl: string }[]>([]);
     const [dailyData, setDailyData] = useState<DailyStats[]>([]);
+    const [recentDownloads, setRecentDownloads] = useState<DownloadEvent[]>([]);
 
     useEffect(() => {
         loadData();
@@ -46,18 +52,20 @@ export default function Analytics() {
         setLoading(true);
         try {
             // Load all analytics data in parallel
-            const [statsData, searchData, dailyStatsData, todayData, gifsData] = await Promise.all([
+            const [statsData, searchData, dailyStatsData, todayData, gifsData, downloadsData] = await Promise.all([
                 getAnalyticsStats(),
                 getTopSearches(10),
                 getDailyStats(7),
                 getTodayStats(),
-                getAllGifs({ limit: 100 })
+                getAllGifs({ limit: 100 }),
+                getRecentDownloads(10)
             ]);
 
             setStats(statsData);
             setTopSearches(searchData);
             setDailyData(dailyStatsData);
             setTodayStats(todayData);
+            setRecentDownloads(downloadsData);
 
             // Get top GIFs by downloads
             const sortedGifs = gifsData
@@ -316,6 +324,98 @@ export default function Analytics() {
                             <p className="text-sm">Add GIFs to the library to see stats</p>
                         </div>
                     )}
+                </div>
+            </div>
+
+            {/* Recent Downloads Table */}
+            <div className="bg-black rounded-2xl border border-white/10 overflow-hidden">
+                <div className="p-6 border-b border-white/10 flex items-center justify-between">
+                    <h3 className="font-semibold flex items-center gap-2">
+                        <Download className="w-5 h-5 text-red-400" />
+                        Recent Downloads
+                    </h3>
+                    <div className="text-xs text-slate-500 flex items-center gap-3">
+                        <span className="flex items-center gap-1">
+                            <Clock className="w-3 h-3" />
+                            Live Updates
+                        </span>
+                    </div>
+                </div>
+                <div className="overflow-x-auto">
+                    <table className="w-full text-left">
+                        <thead>
+                            <tr className="text-xs font-medium text-slate-500 uppercase tracking-wider bg-white/5">
+                                <th className="px-6 py-3">GIF / Content</th>
+                                <th className="px-6 py-3">User</th>
+                                <th className="px-6 py-3">Time</th>
+                                <th className="px-6 py-3">Source</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-white/5">
+                            {recentDownloads.length > 0 ? (
+                                recentDownloads.map((event) => (
+                                    <tr key={event.id} className="hover:bg-white/5 transition-colors group">
+                                        <td className="px-6 py-4">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-10 h-10 rounded-lg bg-white/5 overflow-hidden">
+                                                    <div className="w-full h-full flex items-center justify-center bg-red-500/10">
+                                                        <Download className="w-4 h-4 text-red-400" />
+                                                    </div>
+                                                </div>
+                                                <div>
+                                                    <p className="font-medium text-white group-hover:text-red-400 transition-colors">
+                                                        {event.gifTitle}
+                                                    </p>
+                                                    <p className="text-xs text-slate-500 font-mono">ID: {event.gifId}</p>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            {event.userId ? (
+                                                <div className="flex flex-col">
+                                                    <div className="flex items-center gap-1.5 text-sm font-medium text-white">
+                                                        <UserIcon className="w-3 h-3 text-slate-400" />
+                                                        {event.userName || 'Anonymous'}
+                                                    </div>
+                                                    <div className="flex items-center gap-1.5 text-xs text-slate-500">
+                                                        <Mail className="w-3 h-3" />
+                                                        {event.userEmail || 'No email'}
+                                                    </div>
+                                                </div>
+                                            ) : (
+                                                <span className="text-sm text-slate-500 italic">Guest User</span>
+                                            )}
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            <div className="flex flex-col">
+                                                <span className="text-sm text-white">
+                                                    {event.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                </span>
+                                                <span className="text-xs text-slate-500">
+                                                    {event.timestamp.toLocaleDateString([], { month: 'short', day: 'numeric' })}
+                                                </span>
+                                            </div>
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            <span className={`px-2 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${event.source === 'website' ? 'bg-red-500/20 text-red-400 border border-red-500/20' :
+                                                event.source === 'klipy' ? 'bg-blue-500/20 text-blue-400 border border-blue-500/20' :
+                                                    'bg-white/10 text-slate-400 border border-white/10'
+                                                }`}>
+                                                {event.source}
+                                            </span>
+                                        </td>
+                                    </tr>
+                                ))
+                            ) : (
+                                <tr>
+                                    <td colSpan={4} className="px-6 py-12 text-center text-slate-500">
+                                        <Download className="w-12 h-12 mx-auto mb-3 opacity-20" />
+                                        <p>No downloads recorded today</p>
+                                    </td>
+                                </tr>
+                            )}
+                        </tbody>
+                    </table>
                 </div>
             </div>
 

@@ -11,11 +11,10 @@
  */
 
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { Link } from 'react-router-dom';
 import {
     Search,
     Download,
-    Copy,
-    Share2,
     Flame,
     Calendar,
     TrendingUp,
@@ -25,12 +24,22 @@ import {
     LogIn,
     X,
     ChevronRight,
-    ChevronLeft
+    ChevronLeft,
+    FlaskConical,
+    Heart,
+    Copy,
+    Share2,
+    Settings,
+    Type,
 } from 'lucide-react';
 import { User as FirebaseUser } from 'firebase/auth';
 import { signInWithGoogle, signOut, initAuthListener } from '../services/authService';
+import { ensureUserProfile, UserProfile } from '../services/userProfileService';
 import { searchKlipy, getTrendingKlipy, isKlipyConfigured, KlipyItem } from '../services/klipyService';
 import { trackDownload, trackSearch, trackPageView } from '../services/analyticsService';
+import { toggleFavorite, isFavorited } from '../services/favoritesService';
+import MemeEditor from '../components/MemeEditor';
+import SauceShowdown from '../components/SauceShowdown';
 
 type TrendingPeriod = 'today' | 'week' | 'month' | 'allTime';
 type ContentRating = 'all' | 'pg' | 'pg13' | 'r' | 'unhinged';
@@ -69,6 +78,19 @@ interface Category {
 }
 
 const CATEGORIES: Category[] = [
+    {
+        id: 'saucys-pick',
+        name: "Saucy's Pick",
+        emoji: '🔥',
+        searchTerm: 'tuesday',
+        gradient: 'from-red-500 to-red-700',
+        hoverGradient: 'from-red-600 to-red-800',
+        subcategories: [
+            { id: 'tuesday-vibes', name: 'Tuesday Vibes', emoji: '📅', searchTerm: 'tuesday mood vibes' },
+            { id: 'taco-tuesday', name: 'Taco Tuesday', emoji: '🌮', searchTerm: 'taco tuesday food' },
+            { id: 'transformation', name: 'Transformation', emoji: '✨', searchTerm: 'transformation tuesday glow up' },
+        ]
+    },
     {
         id: 'reactions',
         name: 'Reactions',
@@ -351,12 +373,17 @@ const CATEGORIES: Category[] = [
 
 export default function HomePage() {
     const [user, setUser] = useState<FirebaseUser | null>(null);
+    const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
     const [gifs, setGifs] = useState<LibraryGIF[]>([]);
+    const [activeCategory, setActiveCategory] = useState<Category>(CATEGORIES[0]);
+    const [showMemeEditor, setShowMemeEditor] = useState(false);
     const [gifOfTheDay, setGifOfTheDay] = useState<LibraryGIF | null>(null);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
     const [debouncedSearch, setDebouncedSearch] = useState('');
     const [trendingPeriod, setTrendingPeriod] = useState<TrendingPeriod>('today');
+    const [isFavorite, setIsFavorite] = useState(false);
+    const [togglingFavorite, setTogglingFavorite] = useState(false);
     const [ratingFilter, setRatingFilter] = useState<ContentRating>('all');
     const [selectedGif, setSelectedGif] = useState<LibraryGIF | null>(null);
     const [downloading, setDownloading] = useState<string | null>(null);
@@ -368,18 +395,44 @@ export default function HomePage() {
     const loadMoreRef = useRef<HTMLDivElement>(null);
     const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
     const [selectedSubcategory, setSelectedSubcategory] = useState<SubCategory | null>(null);
-    const [aiSuggestedSubs, setAiSuggestedSubs] = useState<string[]>([]); // IDs of AI-suggested subcategories
-    const [loadingAiSuggestions, setLoadingAiSuggestions] = useState(false);
+    const [showAuthPrompt, setShowAuthPrompt] = useState(false);
+    const [pendingAction, setPendingAction] = useState<{ type: 'download' | 'copy' | 'share' | 'favorite'; gif: LibraryGIF } | null>(null);
+    const [isAiRecommending, setIsAiRecommending] = useState(false);
+    const [aiRecommendation, setAiRecommendation] = useState<{ type: 'trending' | 'remix'; title: string; description: string; sourceQuery: string; remixAction?: string } | null>(null);
+    const [showRemixEditor, setShowRemixEditor] = useState(false);
+    const [remixGif, setRemixGif] = useState<LibraryGIF | null>(null);
+
+    // RESTORED: Refs and AI suggestion states
     const categoriesRef = useRef<HTMLDivElement>(null);
     const subcategoriesRef = useRef<HTMLDivElement>(null);
+    const [aiSuggestedSubs, setAiSuggestedSubs] = useState<string[]>([]);
+    const [loadingAiSuggestions, setLoadingAiSuggestions] = useState(false);
 
     // Store current query to use for loadMore
     const currentQueryRef = useRef<string>('');
 
     // Auth listener
     useEffect(() => {
-        const unsubscribe = initAuthListener((authUser) => {
+        const unsubscribe = initAuthListener(async (authUser) => {
             setUser(authUser);
+
+            // Load user profile if authenticated
+            if (authUser) {
+                try {
+                    const profile = await ensureUserProfile(
+                        authUser.uid,
+                        authUser.email || '',
+                        authUser.displayName || '',
+                        authUser.photoURL || ''
+                    );
+                    setUserProfile(profile);
+                } catch (error) {
+                    console.error('Failed to load user profile:', error);
+                    setUserProfile(null);
+                }
+            } else {
+                setUserProfile(null);
+            }
         });
         return () => unsubscribe();
     }, []);
@@ -388,7 +441,7 @@ export default function HomePage() {
     useEffect(() => {
         const timer = setTimeout(() => {
             setDebouncedSearch(searchTerm);
-        }, 400);
+        }, 500);
         return () => clearTimeout(timer);
     }, [searchTerm]);
 
@@ -397,6 +450,8 @@ export default function HomePage() {
         const performSearch = async () => {
             if (!debouncedSearch.trim()) {
                 setSearchResults([]);
+                setAiRecommendation(null);
+                loadGifOfTheDay(); // Revert to standard trending
                 return;
             }
 
@@ -406,15 +461,42 @@ export default function HomePage() {
             // Clear category when searching
             setSelectedCategory(null);
             setIsSearching(true);
+            setIsAiRecommending(true);
+
             try {
-                const results = await searchKlipy(debouncedSearch, { limit: 30 });
+                // Parallel fetch: Search results + AI recommendation
+                const [results, recommendation] = await Promise.all([
+                    searchKlipy(debouncedSearch, { limit: 30 }),
+                    import('../services/geminiService').then(m => m.getSaucyRecommendation(debouncedSearch))
+                ]);
+
                 setSearchResults(results);
-                console.log(`Search returned ${results.length} results for "${debouncedSearch}"`);
+                setAiRecommendation(recommendation);
+
+                // Fetch a special GIF for the recommendation
+                const aiGifs = await searchKlipy(recommendation.sourceQuery, { limit: 1 });
+                if (aiGifs.length > 0) {
+                    const featured = aiGifs[0];
+                    setGifOfTheDay({
+                        id: featured.id,
+                        url: featured.url,
+                        thumbnailUrl: featured.preview_url,
+                        title: recommendation.title,
+                        description: recommendation.description,
+                        tags: featured.tags || [],
+                        downloads: Math.floor(Math.random() * 5000),
+                        status: 'published',
+                        createdAt: new Date(),
+                    });
+                }
+
+                console.log(`Search & AI recommendation ready for "${debouncedSearch}"`);
             } catch (error) {
                 console.error('Search error:', error);
                 setSearchResults([]);
             } finally {
                 setIsSearching(false);
+                setIsAiRecommending(false);
             }
         };
 
@@ -465,6 +547,39 @@ export default function HomePage() {
 
         return () => observer.disconnect();
     }, [hasMore, loadingMore, loading, debouncedSearch, offset]);
+
+    // Favorites check
+    useEffect(() => {
+        if (selectedGif && user) {
+            checkFavoriteStatus();
+        }
+    }, [selectedGif, user]);
+
+    const checkFavoriteStatus = async () => {
+        if (!selectedGif || !user) return;
+        const status = await isFavorited(user.uid, selectedGif.id);
+        setIsFavorite(status);
+    };
+
+    const handleToggleFavorite = async () => {
+        if (!selectedGif) return;
+
+        if (!user) {
+            setPendingAction({ type: 'favorite', gif: selectedGif });
+            setShowAuthPrompt(true);
+            return;
+        }
+
+        setTogglingFavorite(true);
+        try {
+            const status = await toggleFavorite(user.uid, selectedGif);
+            setIsFavorite(status);
+        } catch (error) {
+            console.error('Failed to toggle favorite:', error);
+        } finally {
+            setTogglingFavorite(false);
+        }
+    };
 
     // Scroll category bar
     const scrollCategories = (direction: 'left' | 'right') => {
@@ -816,12 +931,28 @@ export default function HomePage() {
         }
     };
 
-    const handleDownload = async (gif: LibraryGIF, e?: React.MouseEvent) => {
+    // Check if user is authenticated before performing action
+    const requireAuth = (actionType: 'download' | 'copy' | 'share' | 'favorite', gif: LibraryGIF, e?: React.MouseEvent): boolean => {
         e?.stopPropagation();
+        if (!user) {
+            setPendingAction({ type: actionType, gif });
+            setShowAuthPrompt(true);
+            return false;
+        }
+        return true;
+    };
+
+    const handleDownload = async (gif: LibraryGIF, e?: React.MouseEvent) => {
+        if (!requireAuth('download', gif, e)) return;
         setDownloading(gif.id);
         try {
             // Track download for analytics
-            trackDownload('website');
+            trackDownload({
+                gifId: gif.id,
+                gifTitle: gif.title || 'Untitled',
+                source: 'website',
+                user: user
+            });
 
             // Trigger download
             const response = await fetch(gif.url);
@@ -841,21 +972,35 @@ export default function HomePage() {
         }
     };
 
+    // Generate a shareable Saucy URL for a GIF
+    const getSaucyShareUrl = (gif: LibraryGIF): string => {
+        // Create a Saucy-branded share URL
+        const baseUrl = window.location.origin;
+        return `${baseUrl}/gif/${encodeURIComponent(gif.id)}`;
+    };
+
     const handleCopy = async (gif: LibraryGIF, e?: React.MouseEvent) => {
-        e?.stopPropagation();
+        if (!requireAuth('copy', gif, e)) return;
         try {
-            await navigator.clipboard.writeText(gif.url);
+            // Copy the Saucy share URL, not the raw API URL
+            const shareUrl = getSaucyShareUrl(gif);
+            await navigator.clipboard.writeText(shareUrl);
         } catch (error) {
             console.error('Copy failed:', error);
         }
     };
 
     const handleShare = async (gif: LibraryGIF, e?: React.MouseEvent) => {
+        if (!requireAuth('share', gif, e)) return;
+        const shareUrl = getSaucyShareUrl(gif);
         e?.stopPropagation();
+
+        // Use Web Share API if available
         if (navigator.share) {
             await navigator.share({
-                title: gif.title || 'Saucy GIF',
-                url: gif.url
+                title: gif.title || 'Check out this GIF on Saucy! 🔥',
+                text: `${gif.title || 'Awesome GIF'} - Found on Saucy, the Spotify of GIFs`,
+                url: shareUrl
             });
         } else {
             await handleCopy(gif, e);
@@ -929,6 +1074,26 @@ export default function HomePage() {
                     {/* Auth - Far Right */}
                     {user ? (
                         <div className="flex items-center gap-3 shrink-0">
+                            {/* Sauce Lab Button - Admin Only */}
+                            {userProfile?.role === 'admin' && (
+                                <Link
+                                    to="/admin"
+                                    className="flex items-center gap-2 px-4 py-2 bg-white/5 border border-white/10 text-white rounded-full font-semibold hover:bg-white/10 hover:border-red-500/50 transition-all text-sm group"
+                                >
+                                    <FlaskConical className="w-4 h-4 text-red-500 group-hover:text-red-400 transition-all" />
+                                    <span className="hidden md:inline">Sauce Lab</span>
+                                </Link>
+                            )}
+
+                            {/* Sauce Box (Favorites) */}
+                            <Link
+                                to="/saucebox"
+                                className="flex items-center gap-2 px-4 py-2 bg-white/5 border border-white/10 text-white rounded-full font-semibold hover:bg-white/10 hover:border-red-500/50 transition-all text-sm group"
+                            >
+                                <Heart className="w-4 h-4 text-red-500 group-hover:fill-red-500 transition-all" />
+                                <span className="hidden md:inline">Sauce Box</span>
+                            </Link>
+
                             <div className="text-right hidden sm:block">
                                 <p className="text-sm font-medium">{user.displayName}</p>
                                 <p className="text-xs text-slate-400">Free tier</p>
@@ -956,30 +1121,28 @@ export default function HomePage() {
                 </div>
             </header>
 
-            {/* Categories Section - Now First */}
-            <section className="relative py-6 bg-black">
-                <div className="max-w-7xl mx-auto px-4">
-                    <div className="flex items-center justify-between mb-4">
-                        <h2 className="text-xl font-bold flex items-center gap-2">
-                            <span className="text-2xl">🎯</span>
-                            Browse Categories
-                        </h2>
+            {/* Categories Section - Minimal Pills, Full Width */}
+            <section className="relative py-4 bg-black">
+                <div className="w-full px-6">
+                    <div className="flex items-center gap-2 mb-4 text-slate-400">
+                        <span className="text-lg">🎯</span>
+                        <h2 className="text-sm font-bold uppercase tracking-widest text-white/60">Browse Categories</h2>
                     </div>
 
                     <div
                         ref={categoriesRef}
-                        className="flex flex-wrap gap-3 pb-2"
+                        className="flex flex-wrap items-center justify-between gap-2 md:gap-3"
                     >
                         {CATEGORIES.map((category) => (
                             <button
                                 key={category.id}
                                 onClick={() => handleCategoryClick(category)}
-                                className={`flex items-center gap-2 px-5 py-3 rounded-2xl font-semibold whitespace-nowrap transition-all duration-200 transform hover:scale-105 ${selectedCategory?.id === category.id
-                                    ? 'bg-white/10 text-white border border-white/30 shadow-[0_0_15px_rgba(255,255,255,0.1)]'
-                                    : 'bg-transparent text-slate-300 border border-white/10 hover:border-red-500/50 hover:text-white hover:shadow-[0_0_15px_rgba(239,68,68,0.15)]'
+                                className={`flex items-center gap-2 px-4 py-2 rounded-full font-medium text-sm whitespace-nowrap transition-all duration-200 transform hover:scale-105 active:scale-95 ${selectedCategory?.id === category.id
+                                    ? 'bg-white text-black'
+                                    : 'bg-white/5 text-slate-400 border border-white/10 hover:border-white/20 hover:text-white hover:bg-white/10'
                                     }`}
                             >
-                                <span className="text-xl">{category.emoji}</span>
+                                <span>{category.emoji}</span>
                                 <span>{category.name}</span>
                             </button>
                         ))}
@@ -989,8 +1152,8 @@ export default function HomePage() {
 
             {/* Time Period & Filters - Below Categories, Above GIF of the Day */}
             <section className="bg-black py-4 border-b border-white/5">
-                <div className="max-w-7xl mx-auto px-4">
-                    <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-hide">
+                <div className="w-full px-6">
+                    <div className="flex items-center justify-center gap-2 overflow-x-auto pb-2 scrollbar-hide">
                         {[
                             { id: 'today', label: 'Today', icon: Flame },
                             { id: 'week', label: 'This Week', icon: Calendar },
@@ -1142,70 +1305,16 @@ export default function HomePage() {
                 </section>
             )}
 
-            {/* Sauce of the Day - Now Below Categories and Filters */}
-            {gifOfTheDay && (
-                <section className="relative overflow-hidden bg-black">
-                    <div className="max-w-7xl mx-auto px-4 py-12">
-                        <div className="flex flex-col lg:flex-row items-center gap-8">
-                            {/* GIF Preview */}
-                            <div
-                                className="relative group cursor-pointer"
-                                onClick={() => setSelectedGif(gifOfTheDay)}
-                            >
-                                <div className="absolute -inset-1 bg-gradient-to-r from-red-500/50 to-orange-500/50 rounded-3xl blur-lg opacity-30 group-hover:opacity-50 transition-opacity" />
-                                <div className="relative w-80 h-80 rounded-2xl overflow-hidden border-2 border-white/20">
-                                    <img
-                                        src={gifOfTheDay.url}
-                                        alt={gifOfTheDay.title || 'Sauce of the Day'}
-                                        className="w-full h-full object-cover"
-                                    />
-                                </div>
-                            </div>
-
-                            {/* Info */}
-                            <div className="flex-1 text-center lg:text-left">
-                                <div className="inline-flex items-center gap-2 px-4 py-2 bg-white/5 border border-white/20 rounded-full text-sm font-bold mb-4 text-white">
-                                    <Flame className="w-4 h-4" />
-                                    SAUCE OF THE DAY
-                                </div>
-                                <h1 className="text-4xl lg:text-5xl font-black mb-4">
-                                    {gifOfTheDay.title || 'Trending Now'}
-                                </h1>
-                                <p className="text-slate-400 text-lg mb-6">
-                                    {gifOfTheDay.description || 'The hottest sauce right now'}
-                                </p>
-                                <div className="flex items-center justify-center lg:justify-start gap-6 text-slate-300">
-                                    <div className="flex items-center gap-2">
-                                        <Download className="w-5 h-5" />
-                                        <span className="font-semibold">{formatDownloads(gifOfTheDay.downloads || 0)}</span>
-                                        <span className="text-slate-500">downloads</span>
-                                    </div>
-                                </div>
-                                <div className="flex items-center justify-center lg:justify-start gap-3 mt-6">
-                                    <button
-                                        onClick={(e) => handleDownload(gifOfTheDay, e)}
-                                        className="flex items-center gap-2 px-6 py-3 bg-white/10 border border-white/30 text-white rounded-xl font-bold hover:border-red-500/50 hover:shadow-[0_0_15px_rgba(239,68,68,0.15)] transition-all duration-200"
-                                    >
-                                        <Download className="w-5 h-5" />
-                                        Download
-                                    </button>
-                                    <button
-                                        onClick={(e) => handleCopy(gifOfTheDay, e)}
-                                        className="flex items-center gap-2 px-6 py-3 bg-transparent border border-white/10 text-white rounded-xl font-bold hover:border-red-500/50 hover:shadow-[0_0_15px_rgba(239,68,68,0.15)] transition-all duration-200"
-                                    >
-                                        <Copy className="w-5 h-5" />
-                                        Copy Link
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </section>
-            )}
+            {/* Sauce Showdown - Daily Voting Battle */}
+            <section className="relative bg-black py-8">
+                <div className="w-full px-6">
+                    <SauceShowdown user={user} />
+                </div>
+            </section>
 
 
             {/* GIF Grid */}
-            <main className="max-w-7xl mx-auto px-4 py-8">
+            <main className="w-full px-6 py-8">
                 {/* Search indicator */}
                 {debouncedSearch && isKlipyConfigured() && (
                     <div className="mb-4 flex items-center gap-2 text-sm text-slate-400">
@@ -1234,7 +1343,7 @@ export default function HomePage() {
                         )}
                     </div>
                 ) : (
-                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-8 3xl:grid-cols-10 gap-4">
                         {displayGifs.map((gif) => (
                             <div
                                 key={gif.id}
@@ -1262,32 +1371,34 @@ export default function HomePage() {
                                 </div>
 
                                 {/* Hover Actions */}
-                                <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-                                    <button
-                                        onClick={(e) => handleDownload(gif, e)}
-                                        className="p-3 bg-white/20 hover:bg-white/30 rounded-full transition-colors"
-                                        title="Download"
-                                    >
-                                        {downloading === gif.id ? (
-                                            <Loader2 className="w-5 h-5 animate-spin" />
-                                        ) : (
-                                            <Download className="w-5 h-5" />
-                                        )}
-                                    </button>
-                                    <button
-                                        onClick={(e) => handleCopy(gif, e)}
-                                        className="p-3 bg-white/20 hover:bg-white/30 rounded-full transition-colors"
-                                        title="Copy Link"
-                                    >
-                                        <Copy className="w-5 h-5" />
-                                    </button>
-                                    <button
-                                        onClick={(e) => handleShare(gif, e)}
-                                        className="p-3 bg-white/20 hover:bg-white/30 rounded-full transition-colors"
-                                        title="Share"
-                                    >
-                                        <Share2 className="w-5 h-5" />
-                                    </button>
+                                <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px] opacity-0 group-hover:opacity-100 transition-all duration-300 flex items-center justify-center gap-2">
+                                    <div className="flex items-center gap-2 transform translate-y-4 group-hover:translate-y-0 transition-transform duration-300">
+                                        <button
+                                            onClick={(e) => handleDownload(gif, e)}
+                                            className="p-3 bg-white/20 hover:bg-red-500/80 backdrop-blur-md rounded-full transition-all border border-white/20 hover:border-white/40 hover:scale-110"
+                                            title="Download"
+                                        >
+                                            {downloading === gif.id ? (
+                                                <Loader2 className="w-5 h-5 animate-spin" />
+                                            ) : (
+                                                <Download className="w-5 h-5" />
+                                            )}
+                                        </button>
+                                        <button
+                                            onClick={(e) => handleCopy(gif, e)}
+                                            className="p-3 bg-white/20 hover:bg-white/40 backdrop-blur-md rounded-full transition-all border border-white/20 hover:border-white/40 hover:scale-110"
+                                            title="Copy Link"
+                                        >
+                                            <Copy className="w-5 h-5" />
+                                        </button>
+                                        <button
+                                            onClick={(e) => handleShare(gif, e)}
+                                            className="p-3 bg-white/20 hover:bg-white/40 backdrop-blur-md rounded-full transition-all border border-white/20 hover:border-white/40 hover:scale-110"
+                                            title="Share"
+                                        >
+                                            <Share2 className="w-5 h-5" />
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
                         ))}
@@ -1370,7 +1481,7 @@ export default function HomePage() {
                             <div className="flex gap-3">
                                 <button
                                     onClick={(e) => handleDownload(selectedGif, e)}
-                                    className="flex-1 flex items-center justify-center gap-2 py-3 bg-gradient-to-r from-red-600 to-orange-600 rounded-xl font-bold hover:opacity-90 transition-opacity"
+                                    className="flex-1 flex items-center justify-center gap-2 py-3.5 bg-gradient-to-r from-red-600 to-orange-600 rounded-2xl font-bold hover:from-red-500 hover:to-orange-500 transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] shadow-lg shadow-red-500/20"
                                 >
                                     {downloading === selectedGif.id ? (
                                         <Loader2 className="w-5 h-5 animate-spin" />
@@ -1380,14 +1491,38 @@ export default function HomePage() {
                                     Download
                                 </button>
                                 <button
+                                    onClick={() => setShowMemeEditor(true)}
+                                    className="flex-1 flex items-center justify-center gap-2 py-3.5 bg-white/5 border border-white/10 rounded-2xl font-bold hover:bg-white/10 hover:border-red-500/50 transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
+                                >
+                                    <Type className="w-5 h-5 text-red-500" />
+                                    Customize
+                                </button>
+                                <button
+                                    onClick={handleToggleFavorite}
+                                    disabled={togglingFavorite}
+                                    className={`flex items-center justify-center p-3.5 border rounded-2xl transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] ${isFavorite
+                                        ? 'bg-red-500/10 border-red-500/50 text-red-500'
+                                        : 'bg-white/5 border-white/10 text-white hover:bg-white/10 hover:border-red-500/50'
+                                        }`}
+                                    title={isFavorite ? "Remove from Sauce Box" : "Add to Sauce Box"}
+                                >
+                                    {togglingFavorite ? (
+                                        <Loader2 className="w-5 h-5 animate-spin" />
+                                    ) : (
+                                        <Heart className={`w-5 h-5 ${isFavorite ? 'fill-red-500' : ''}`} />
+                                    )}
+                                </button>
+                                <button
                                     onClick={(e) => handleCopy(selectedGif, e)}
-                                    className="flex items-center gap-2 px-6 py-3 bg-white/10 rounded-xl font-bold hover:bg-white/20 transition-colors"
+                                    className="flex items-center justify-center p-3.5 bg-white/5 border border-white/10 rounded-2xl hover:bg-white/10 hover:border-red-500/50 transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
+                                    title="Copy Link"
                                 >
                                     <Copy className="w-5 h-5" />
                                 </button>
                                 <button
                                     onClick={(e) => handleShare(selectedGif, e)}
-                                    className="flex items-center gap-2 px-6 py-3 bg-white/10 rounded-xl font-bold hover:bg-white/20 transition-colors"
+                                    className="flex items-center justify-center p-3.5 bg-white/5 border border-white/10 rounded-2xl hover:bg-white/10 hover:border-red-500/50 transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
+                                    title="Share"
                                 >
                                     <Share2 className="w-5 h-5" />
                                 </button>
@@ -1395,6 +1530,101 @@ export default function HomePage() {
                         </div>
                     </div>
                 </div>
+            )}
+
+            {/* Auth Prompt Modal */}
+            {showAuthPrompt && (
+                <div
+                    className="fixed inset-0 bg-black/90 backdrop-blur-xl z-[100] flex items-center justify-center p-4"
+                    onClick={() => {
+                        setShowAuthPrompt(false);
+                        setPendingAction(null);
+                    }}
+                >
+                    <div
+                        className="bg-[#1a1a1f] border border-white/10 rounded-3xl max-w-md w-full p-8 text-center"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        {/* Close button */}
+                        <button
+                            onClick={() => {
+                                setShowAuthPrompt(false);
+                                setPendingAction(null);
+                            }}
+                            className="absolute top-4 right-4 p-2 text-slate-400 hover:text-white transition-colors"
+                        >
+                            <X className="w-5 h-5" />
+                        </button>
+
+                        {/* Icon */}
+                        <div className="w-16 h-16 mx-auto mb-6 rounded-full bg-gradient-to-br from-red-500/20 to-orange-500/20 flex items-center justify-center">
+                            {pendingAction?.type === 'download' && <Download className="w-8 h-8 text-red-400" />}
+                            {pendingAction?.type === 'copy' && <Copy className="w-8 h-8 text-red-400" />}
+                            {pendingAction?.type === 'share' && <Share2 className="w-8 h-8 text-red-400" />}
+                        </div>
+
+                        {/* Title */}
+                        <h3 className="text-2xl font-bold text-white mb-2">
+                            Sign in to {pendingAction?.type === 'download' ? 'Download' : pendingAction?.type === 'copy' ? 'Copy' : 'Share'}
+                        </h3>
+                        <p className="text-slate-400 mb-8">
+                            Join Saucy to {pendingAction?.type} this GIF and unlock your full sauce potential 🔥
+                        </p>
+
+                        {/* Google Sign In Button */}
+                        <button
+                            onClick={async () => {
+                                await signInWithGoogle();
+                                setShowAuthPrompt(false);
+                                // After sign in, retry the pending action
+                                if (pendingAction) {
+                                    const { type, gif } = pendingAction;
+                                    setPendingAction(null);
+                                    // The user state will update and they can try again
+                                }
+                            }}
+                            className="w-full flex items-center justify-center gap-3 px-6 py-4 bg-white text-black rounded-2xl font-semibold text-lg hover:bg-slate-100 transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] shadow-lg mb-4"
+                        >
+                            {/* Google Icon */}
+                            <svg className="w-5 h-5" viewBox="0 0 24 24">
+                                <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                                <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                                <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
+                                <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
+                            </svg>
+                            Continue with Google
+                        </button>
+
+                        {/* Cancel link */}
+                        <button
+                            onClick={() => {
+                                setShowAuthPrompt(false);
+                                setPendingAction(null);
+                            }}
+                            className="text-slate-500 text-sm hover:text-slate-300 transition-colors"
+                        >
+                            Maybe later
+                        </button>
+                    </div>
+                </div>
+            )}
+
+            {/* Meme Editor Modals */}
+            {(showMemeEditor && selectedGif) && (
+                <MemeEditor
+                    gifUrl={selectedGif.url}
+                    onClose={() => setShowMemeEditor(false)}
+                />
+            )}
+
+            {(showRemixEditor && remixGif) && (
+                <MemeEditor
+                    gifUrl={remixGif.url}
+                    onClose={() => {
+                        setShowRemixEditor(false);
+                        setRemixGif(null);
+                    }}
+                />
             )}
         </div>
     );

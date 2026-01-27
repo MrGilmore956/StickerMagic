@@ -25,6 +25,7 @@ import {
     increment,
     DocumentData
 } from 'firebase/firestore';
+import { isMockAdminActive } from './authService';
 import { db } from './firebaseConfig';
 
 // Content rating types
@@ -313,7 +314,58 @@ export async function deleteGif(gifId: string): Promise<void> {
 /**
  * Get pending review GIFs (Admin)
  */
-export async function getPendingGifs(limitCount = 50): Promise<LibraryGIF[]> {
+export async function getPendingGifs(limitCount: number = 50): Promise<LibraryGIF[]> {
+    if (isMockAdminActive()) {
+        // Return 3 mock pending GIFs
+        return [
+            {
+                id: 'pending-1',
+                url: 'https://media.klipy.co/v1/gifs/5f9b4b4e9e4b4b4e9e4b4b4e/raw',
+                thumbnailUrl: 'https://media.klipy.co/v1/gifs/5f9b4b4e9e4b4b4e9e4b4b4e/preview',
+                title: 'Suspicious Cat',
+                tags: ['pending', 'cat'],
+                rating: 'pg',
+                source: 'manual',
+                status: 'pending',
+                downloads: 0,
+                shares: 0,
+                trendingScore: 0,
+                createdAt: new Date(),
+                updatedAt: new Date()
+            },
+            {
+                id: 'pending-2',
+                url: 'https://media.klipy.co/v1/gifs/5f9b4b4e9e4b4b4e9e4b4b4f/raw',
+                thumbnailUrl: 'https://media.klipy.co/v1/gifs/5f9b4b4e9e4b4b4e9e4b4b4f/preview',
+                title: 'Happy Dance',
+                tags: ['dance', 'party'],
+                rating: 'pg13',
+                source: 'viral',
+                status: 'pending',
+                downloads: 0,
+                shares: 0,
+                trendingScore: 0,
+                createdAt: new Date(),
+                updatedAt: new Date()
+            },
+            {
+                id: 'pending-3',
+                url: 'https://media.klipy.co/v1/gifs/5f9b4b4e9e4b4b4e9e4b4b50/raw',
+                thumbnailUrl: 'https://media.klipy.co/v1/gifs/5f9b4b4e9e4b4b4e9e4b4b50/preview',
+                title: 'Mind Blown',
+                tags: ['wow', 'surprise'],
+                rating: 'pg',
+                source: 'memes',
+                status: 'pending',
+                downloads: 0,
+                shares: 0,
+                trendingScore: 0,
+                createdAt: new Date(),
+                updatedAt: new Date()
+            }
+        ];
+    }
+
     try {
         const q = query(
             collection(db, GIF_COLLECTION),
@@ -338,6 +390,26 @@ export async function getAllGifs(options?: {
     source?: ContentSource;
     limit?: number;
 }): Promise<LibraryGIF[]> {
+    if (isMockAdminActive()) {
+        // Return mock library data
+        const limitCount = options?.limit || 50;
+        return Array.from({ length: Math.min(limitCount, 12) }).map((_, i) => ({
+            id: `mock-lib-${i}`,
+            url: i % 2 === 0 ? 'https://media.klipy.co/v1/gifs/5f9b4b4e9e4b4b4e9e4b4b4e/raw' : 'https://media.klipy.co/v1/gifs/5f9b4b4e9e4b4b4e9e4b4b4f/raw',
+            thumbnailUrl: i % 2 === 0 ? 'https://media.klipy.co/v1/gifs/5f9b4b4e9e4b4b4e9e4b4b4e/preview' : 'https://media.klipy.co/v1/gifs/5f9b4b4e9e4b4b4e9e4b4b4f/preview',
+            title: `Mock Library GIF ${i}`,
+            tags: ['mock', 'library', 'test'],
+            rating: i % 3 === 0 ? 'r' : 'pg',
+            source: 'manual',
+            status: 'approved',
+            downloads: 100 + i * 50,
+            shares: 10 + i * 5,
+            trendingScore: 50 + i * 10,
+            createdAt: new Date(),
+            updatedAt: new Date()
+        }));
+    }
+
     try {
         let q = query(
             collection(db, GIF_COLLECTION),

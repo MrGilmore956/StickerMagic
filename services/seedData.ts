@@ -144,6 +144,58 @@ const SEED_GIFS = [
         downloads: Math.floor(Math.random() * 11000) + 1200,
         shares: Math.floor(Math.random() * 550) + 70,
         trendingScore: Math.random() * 100
+    },
+    {
+        url: 'https://media.giphy.com/media/c60cT7Vl98iSk/giphy.gif',
+        thumbnailUrl: 'https://media.giphy.com/media/c60cT7Vl98iSk/200.gif',
+        title: 'Anime Cool',
+        description: 'Classic cool anime vibes',
+        tags: ['anime', 'cool', 'vibes', 'saucy', 'aesthetic'],
+        rating: 'pg' as const,
+        status: 'approved' as const,
+        source: 'anime' as const,
+        downloads: Math.floor(Math.random() * 30000) + 5000,
+        shares: Math.floor(Math.random() * 2000) + 400,
+        trendingScore: 200
+    },
+    {
+        url: 'https://media.giphy.com/media/l41lTfJvE7O4g4W5K/giphy.gif',
+        thumbnailUrl: 'https://media.giphy.com/media/l41lTfJvE7O4g4W5K/200.gif',
+        title: 'Retro Gaming',
+        description: '8-bit victory dance',
+        tags: ['gaming', 'retro', '8bit', 'win', 'pixel'],
+        rating: 'pg' as const,
+        status: 'approved' as const,
+        source: 'gaming' as const,
+        downloads: Math.floor(Math.random() * 15000) + 2000,
+        shares: Math.floor(Math.random() * 1000) + 200,
+        trendingScore: 150
+    },
+    {
+        url: 'https://media.giphy.com/media/3o7TKMG7X3B2F7A8Y8/giphy.gif',
+        thumbnailUrl: 'https://media.giphy.com/media/3o7TKMG7X3B2F7A8Y8/200.gif',
+        title: 'Cyberpunk City',
+        description: 'Neon future vibes',
+        tags: ['cyberpunk', 'neon', 'future', 'vibe', 'aesthetic'],
+        rating: 'pg' as const,
+        status: 'approved' as const,
+        source: 'entertainment' as const,
+        downloads: Math.floor(Math.random() * 12000) + 1500,
+        shares: Math.floor(Math.random() * 800) + 150,
+        trendingScore: 130
+    },
+    {
+        url: 'https://media.giphy.com/media/3o7TKVUn7iM8FMEU24/giphy.gif',
+        thumbnailUrl: 'https://media.giphy.com/media/3o7TKVUn7iM8FMEU24/200.gif',
+        title: 'Vaporwave Sunset',
+        description: 'Perfect aesthetic loop',
+        tags: ['vaporwave', 'aesthetic', 'sunset', 'vibe', 'relax'],
+        rating: 'pg' as const,
+        status: 'approved' as const,
+        source: 'manual' as const,
+        downloads: Math.floor(Math.random() * 22000) + 3500,
+        shares: Math.floor(Math.random() * 1500) + 300,
+        trendingScore: 180
     }
 ];
 

@@ -24,9 +24,42 @@ export interface ApiKeyResult {
 let currentUser: User | null = null;
 
 /**
+ * Check if mock admin session is active
+ */
+export const isMockAdminActive = (): boolean => {
+    const savedUser = localStorage.getItem('saucy_user');
+    if (savedUser) {
+        try {
+            const user = JSON.parse(savedUser);
+            return user.email === 'admin@saucy.com';
+        } catch (e) {
+            return false;
+        }
+    }
+    return false;
+};
+
+/**
  * Initialize auth state listener
  */
 export const initAuthListener = (callback: (user: User | null) => void) => {
+    // Check if we have a mock admin session in localStorage
+    const savedUser = localStorage.getItem('saucy_user');
+    if (savedUser) {
+        try {
+            const user = JSON.parse(savedUser);
+            if (user.email === 'admin@saucy.com') {
+                console.log('DEMO MODE: Activating mock admin session from storage');
+                currentUser = user as User;
+                callback(currentUser);
+                // Return no-op unsubscribe
+                return () => { };
+            }
+        } catch (e) {
+            console.error('Failed to parse mock user:', e);
+        }
+    }
+
     return onAuthStateChanged(auth, (user) => {
         currentUser = user;
         callback(user);
@@ -50,6 +83,44 @@ export const signInWithGoogle = async (): Promise<User | null> => {
  * Sign in with Email/Password
  */
 export const signInWithEmail = async (email: string, password: string): Promise<{ user: User | null; error: string | null }> => {
+    // Demo/Test Bypass for admin
+    if (email === 'admin@saucy.com' && password === 'admin123') {
+        console.log('DEMO MODE: Bypassing Firebase Auth for admin test account');
+        const mockUser = {
+            uid: 'admin-test-uid',
+            email: 'admin@saucy.com',
+            displayName: 'Admin (Test)',
+            photoURL: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Admin',
+            emailVerified: true,
+            isAnonymous: false,
+            metadata: {},
+            providerData: [],
+            refreshToken: '',
+            tenantId: null,
+            delete: async () => { },
+            getIdToken: async () => 'test-token',
+            getIdTokenResult: async () => ({}) as any,
+            reload: async () => { },
+            toJSON() {
+                return {
+                    uid: this.uid,
+                    email: this.email,
+                    displayName: this.displayName,
+                    photoURL: this.photoURL
+                }
+            }
+        } as any;
+
+        // Save to localStorage so initAuthListener picks it up
+        localStorage.setItem('saucy_user', JSON.stringify(mockUser));
+        currentUser = mockUser;
+
+        return {
+            user: mockUser,
+            error: null
+        };
+    }
+
     try {
         const result = await signInWithEmailAndPassword(auth, email, password);
         return { user: result.user, error: null };
@@ -104,6 +175,7 @@ export const signOut = async (): Promise<void> => {
     try {
         await firebaseSignOut(auth);
         currentUser = null;
+        localStorage.removeItem('saucy_user');
     } catch (error) {
         console.error('Sign out failed:', error);
     }

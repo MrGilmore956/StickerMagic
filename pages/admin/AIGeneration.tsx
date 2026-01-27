@@ -21,7 +21,8 @@ import {
     generateGifIdeas,
     generateTags,
     classifyContentRating,
-    generateTitle
+    generateTitle,
+    checkContentSafety
 } from '../../services/veoService';
 
 // Content source options with descriptions
@@ -75,10 +76,20 @@ export default function AIGeneration() {
         setGenerating(true);
         setResult(null);
         setGeneratedUrl(null);
-        setProgressStatus('Enhancing prompt with AI...');
-
         try {
+            // Step 0: Check content safety
+            setProgressStatus('Checking safety...');
+            const safety = await checkContentSafety(prompt);
+            if (!safety.isSafe) {
+                setResult({
+                    success: false,
+                    message: `Safety check failed: ${safety.reason || 'This prompt contains content that violates our policies.'}`
+                });
+                return;
+            }
+
             // Step 1: Enhance the prompt with Gemini
+            setProgressStatus('Enhancing prompt with AI...');
             const enhancedPrompt = await enhancePromptWithGemini(prompt);
             setProgressStatus('Generating video with Veo...');
 

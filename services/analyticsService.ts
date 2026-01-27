@@ -15,6 +15,7 @@ import {
     updateDoc,
     increment,
     collection,
+    addDoc,
     query,
     orderBy,
     limit,
@@ -22,6 +23,8 @@ import {
     Timestamp,
     serverTimestamp
 } from 'firebase/firestore';
+import { User } from 'firebase/auth';
+import { isMockAdminActive } from './authService';
 
 // Types
 export interface AnalyticsStats {
@@ -61,6 +64,18 @@ export interface DailyStats {
     visitors: number;
 }
 
+export interface DownloadEvent {
+    id: string;
+    gifId: string;
+    gifTitle: string;
+    userId?: string;
+    userName?: string;
+    userEmail?: string;
+    timestamp: Date;
+    source: DownloadSource;
+}
+
+
 /**
  * Download sources for tracking
  */
@@ -70,6 +85,8 @@ export type DownloadSource = 'website' | 'klipy' | 'giphy' | 'tenor' | 'api' | '
 const STATS_DOC = 'analytics/stats';
 const SEARCHES_COLLECTION = 'analytics_searches';
 const DAILY_COLLECTION = 'analytics_daily';
+const DOWNLOADS_COLLECTION = 'analytics_downloads';
+
 
 /**
  * Get current date string for daily tracking
@@ -127,14 +144,23 @@ export async function trackPageView(): Promise<void> {
             });
         }
     } catch (error) {
-        console.error('Error tracking page view:', error);
+        if (!isMockAdminActive()) {
+            console.error('Error tracking page view:', error);
+        }
     }
 }
 
 /**
- * Track a download event with source
+ * Track a download event with source and metadata
  */
-export async function trackDownload(source: DownloadSource = 'website'): Promise<void> {
+export async function trackDownload(options: {
+    gifId: string;
+    gifTitle: string;
+    source?: DownloadSource;
+    user?: User | null;
+}): Promise<void> {
+    const { gifId, gifTitle, source = 'website', user } = options;
+
     try {
         await ensureStatsDoc();
         const statsRef = doc(db, STATS_DOC);
@@ -168,8 +194,23 @@ export async function trackDownload(source: DownloadSource = 'website'): Promise
                 visitors: 0
             });
         }
+
+        // Record detailed download event
+        const downloadsRef = collection(db, DOWNLOADS_COLLECTION);
+        await addDoc(downloadsRef, {
+            gifId,
+            gifTitle,
+            userId: user?.uid || null,
+            userName: user?.displayName || null,
+            userEmail: user?.email || null,
+            timestamp: serverTimestamp(),
+            source
+        });
+
     } catch (error) {
-        console.error('Error tracking download:', error);
+        if (!isMockAdminActive()) {
+            console.error('Error tracking download:', error);
+        }
     }
 }
 
@@ -202,7 +243,9 @@ export async function trackShare(): Promise<void> {
             });
         }
     } catch (error) {
-        console.error('Error tracking share:', error);
+        if (!isMockAdminActive()) {
+            console.error('Error tracking share:', error);
+        }
     }
 }
 
@@ -257,7 +300,9 @@ export async function trackSearch(searchTerm: string): Promise<void> {
             });
         }
     } catch (error) {
-        console.error('Error tracking search:', error);
+        if (!isMockAdminActive()) {
+            console.error('Error tracking search:', error);
+        }
     }
 }
 
@@ -265,6 +310,17 @@ export async function trackSearch(searchTerm: string): Promise<void> {
  * Get aggregate analytics stats
  */
 export async function getAnalyticsStats(): Promise<AnalyticsStats> {
+    if (isMockAdminActive()) {
+        return {
+            totalDownloads: 12500,
+            totalViews: 45000,
+            totalShares: 8900,
+            totalSearches: 15200,
+            uniqueVisitors: 5600,
+            lastUpdated: new Date()
+        };
+    }
+
     try {
         await ensureStatsDoc();
         const statsRef = doc(db, STATS_DOC);
@@ -299,6 +355,21 @@ export async function getAnalyticsStats(): Promise<AnalyticsStats> {
  * Get top search terms
  */
 export async function getTopSearches(limitCount: number = 10): Promise<SearchTerm[]> {
+    if (isMockAdminActive()) {
+        return [
+            { term: 'reaction', count: 1200, lastSearched: new Date() },
+            { term: 'funny', count: 950, lastSearched: new Date() },
+            { term: 'excited', count: 840, lastSearched: new Date() },
+            { term: 'oops', count: 720, lastSearched: new Date() },
+            { term: 'dance', count: 650, lastSearched: new Date() },
+            { term: 'cat', count: 590, lastSearched: new Date() },
+            { term: 'bruh', count: 530, lastSearched: new Date() },
+            { term: 'congrats', count: 480, lastSearched: new Date() },
+            { term: 'sad', count: 420, lastSearched: new Date() },
+            { term: 'shocked', count: 390, lastSearched: new Date() }
+        ].slice(0, limitCount);
+    }
+
     try {
         const searchesRef = collection(db, SEARCHES_COLLECTION);
         const q = query(searchesRef, orderBy('count', 'desc'), limit(limitCount));
@@ -322,6 +393,24 @@ export async function getTopSearches(limitCount: number = 10): Promise<SearchTer
  * Get daily stats for the last N days
  */
 export async function getDailyStats(days: number = 7): Promise<DailyStats[]> {
+    if (isMockAdminActive()) {
+        const stats: DailyStats[] = [];
+        for (let i = 0; i < days; i++) {
+            const d = new Date();
+            d.setDate(d.getDate() - i);
+            const dateStr = d.toISOString().split('T')[0];
+            stats.push({
+                date: dateStr,
+                downloads: 150 + Math.floor(Math.random() * 100),
+                views: 500 + Math.floor(Math.random() * 200),
+                shares: 40 + Math.floor(Math.random() * 30),
+                searches: 200 + Math.floor(Math.random() * 100),
+                visitors: 100 + Math.floor(Math.random() * 50)
+            });
+        }
+        return stats;
+    }
+
     try {
         const dailyRef = collection(db, DAILY_COLLECTION);
         const q = query(dailyRef, orderBy('date', 'desc'), limit(days));
@@ -348,6 +437,17 @@ export async function getDailyStats(days: number = 7): Promise<DailyStats[]> {
  * Get stats for today only
  */
 export async function getTodayStats(): Promise<DailyStats | null> {
+    if (isMockAdminActive()) {
+        return {
+            date: new Date().toISOString().split('T')[0],
+            downloads: 185,
+            views: 620,
+            shares: 52,
+            searches: 245,
+            visitors: 124
+        };
+    }
+
     try {
         const dailyRef = doc(db, DAILY_COLLECTION, getTodayString());
         const dailySnap = await getDoc(dailyRef);
@@ -368,4 +468,68 @@ export async function getTodayStats(): Promise<DailyStats | null> {
     }
 
     return null;
+}
+
+/**
+ * Get recent download events
+ */
+export async function getRecentDownloads(limitCount: number = 20): Promise<DownloadEvent[]> {
+    if (isMockAdminActive()) {
+        const mockUsers = [
+            { name: 'John Doe', email: 'john@example.com' },
+            { name: 'Jane Smith', email: 'jane@test.org' },
+            { name: 'Alex Johnson', email: 'alex.j@gmail.com' },
+            { name: 'Sam Wilson', email: 'sam.w@company.com' },
+            { name: 'Sarah Miller', email: 'sarah.m@dev.io' }
+        ];
+
+        const mockGifs = [
+            { id: 'gif-1', title: 'Funny Cat Dance' },
+            { id: 'gif-2', title: 'Excited Celebration' },
+            { id: 'gif-3', title: 'Facepalm Reaction' },
+            { id: 'gif-4', title: 'Success Kid Yes' },
+            { id: 'gif-5', title: 'Mind Blown Galaxy' }
+        ];
+
+        return Array.from({ length: limitCount }).map((_, i) => {
+            const user = mockUsers[i % mockUsers.length];
+            const gif = mockGifs[i % mockGifs.length];
+            const timestamp = new Date();
+            timestamp.setMinutes(timestamp.getMinutes() - (i * 15 + Math.floor(Math.random() * 10)));
+
+            return {
+                id: `evt-${i}`,
+                gifId: gif.id,
+                gifTitle: gif.title,
+                userId: `user-${i}`,
+                userName: user.name,
+                userEmail: user.email,
+                timestamp,
+                source: (['website', 'klipy', 'api'] as DownloadSource[])[i % 3]
+            };
+        });
+    }
+
+    try {
+        const downloadsRef = collection(db, DOWNLOADS_COLLECTION);
+        const q = query(downloadsRef, orderBy('timestamp', 'desc'), limit(limitCount));
+        const snapshot = await getDocs(q);
+
+        return snapshot.docs.map(doc => {
+            const data = doc.data();
+            return {
+                id: doc.id,
+                gifId: data.gifId,
+                gifTitle: data.gifTitle,
+                userId: data.userId,
+                userName: data.userName,
+                userEmail: data.userEmail,
+                timestamp: data.timestamp?.toDate() || new Date(),
+                source: data.source as DownloadSource
+            };
+        });
+    } catch (error) {
+        console.error('Error getting recent downloads:', error);
+        return [];
+    }
 }

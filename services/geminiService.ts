@@ -384,3 +384,72 @@ Respond with ONLY the refined prompt, nothing else.`;
   const refined = response.candidates?.[0]?.content?.parts?.[0]?.text;
   return refined?.trim() || currentPrompt;
 };
+
+/**
+ * Get a dynamic recommendation/remix challenge based on search intent
+ */
+export const getSaucyRecommendation = async (query: string): Promise<{
+  type: 'trending' | 'remix';
+  title: string;
+  description: string;
+  sourceQuery: string;
+  remixAction?: string;
+}> => {
+  const { key, isDemo } = await getSaucyApiKey();
+
+  if (isDemo) {
+    // Return clever demo responses for common queries
+    const q = query.toLowerCase();
+    if (q.includes('birthday') || q.includes('party')) {
+      return {
+        type: 'remix',
+        title: "The Ultimate Birthday Glow-Up",
+        description: "That cat is cute, but imagine it with a neon party hat and 3D confetti! 🔥",
+        sourceQuery: "funny festive cat",
+        remixAction: "Add a 3D party hat and rainbow confetti burst"
+      };
+    }
+    return {
+      type: 'trending',
+      title: `The ${q.charAt(0).toUpperCase() + q.slice(1)} Vault`,
+      description: `I've scoured the depths of the internet to find the absolut best ${q} sauce for you.`,
+      sourceQuery: q
+    };
+  }
+
+  const ai = new GoogleGenAI({ apiKey: key });
+  const prompt = `You are Saucy, the sentient AI creative director for a premium GIF library. 
+  A user just searched for: "${query}"
+  
+  Analyze the INTENT. Is it for a specific event (birthday, wedding, congrats)? Or a general emotion (happy, sad)?
+  
+  Generate ONE creative recommendation in JSON format:
+  {
+    "type": "trending" (for general sentiment) or "remix" (for specific events/goals where editing would add value),
+    "title": "Short catchy title (max 5 words)",
+    "description": "Witty, slightly tech-bro response explaining why this is perfect (max 15 words)",
+    "sourceQuery": "A more specific Klipy search term to find the perfect BASE GIF",
+    "remixAction": "ONLY IF type is remix: A specific creative edit like 'Add a birthday hat' or 'Make it rain gold nuggets'"
+  }
+  
+  BE SPECIFIC. RESPOND ONLY WITH THE JSON.`;
+
+  try {
+    const result = await ai.models.generateContent({
+      model: 'gemini-1.5-flash',
+      contents: [{ role: 'user', parts: [{ text: prompt }] }],
+    });
+
+    const text = result.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    const jsonStr = text.match(/\{[\s\S]*\}/)?.[0] || '';
+    return JSON.parse(jsonStr);
+  } catch (err) {
+    console.error('Saucy recommendation failed:', err);
+    return {
+      type: 'trending',
+      title: "The trending choice",
+      description: "Found some fire content for you.",
+      sourceQuery: query
+    };
+  }
+};

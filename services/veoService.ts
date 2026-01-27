@@ -393,6 +393,47 @@ Title:`,
     }
 }
 
+/**
+ * Perform real-time AI moderation on a prompt
+ */
+export async function checkContentSafety(prompt: string): Promise<{ isSafe: boolean; reason?: string }> {
+    const { key, isDemo } = await getSaucyApiKey();
+
+    if (isDemo || !key) {
+        return { isSafe: true };
+    }
+
+    try {
+        const genAI = new GoogleGenAI({ apiKey: key });
+
+        const response = await genAI.models.generateContent({
+            model: 'gemini-2.0-flash',
+            contents: `As an AI moderator for a GIF search engine called Saucy, evaluate the following prompt for safety. 
+Check for: explicit adult content, hate speech, severe violence, or harassment.
+
+Prompt: "${prompt}"
+
+Return your decision in JSON format:
+{ "isSafe": boolean, "reason": "brief explanation if unsafe" }`,
+        });
+
+        const text = response.text || '';
+        const jsonMatch = text.match(/\{[\s\S]*\}/);
+
+        if (jsonMatch) {
+            return JSON.parse(jsonMatch[0]);
+        }
+
+        // Fallback to text parsing
+        const isSafe = !text.toLowerCase().includes('"issafe": false');
+        return { isSafe };
+
+    } catch (error) {
+        console.warn('Safety check failed, defaulting to safe:', error);
+        return { isSafe: true };
+    }
+}
+
 // Helper functions
 
 function getDefaultIdeas(topic: string, count: number): string[] {

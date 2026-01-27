@@ -13,6 +13,10 @@
  * - /memes/search - Search memes
  */
 
+import { db } from './firebaseConfig';
+import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { isMockAdminActive } from './authService';
+
 // API Configuration
 const KLIPY_API_KEY = import.meta.env.VITE_KLIPY_API_KEY || '';
 const KLIPY_BASE_URL = 'https://api.klipy.com/api/v1';
@@ -127,9 +131,31 @@ export async function searchKlipy(
 ): Promise<KlipyItem[]> {
     const { type = 'gifs', limit = 24, offset = 0, locale = 'en' } = options;
 
-    // If no query provided, get trending instead
     if (!query.trim()) {
         return getTrendingKlipy({ type, limit, locale });
+    }
+
+    // Check Cache first
+    const cacheKey = `search_${type}_${query.toLowerCase().trim()}_${limit}`;
+    try {
+        const cacheRef = doc(db, 'search_cache', cacheKey);
+        const cacheSnap = await getDoc(cacheRef);
+
+        if (cacheSnap.exists()) {
+            const cacheData = cacheSnap.data();
+            const updatedAt = cacheData.updatedAt?.toDate() || new Date(0);
+            const ageInHours = (Date.now() - updatedAt.getTime()) / (1000 * 60 * 60);
+
+            // Cache valid for 24 hours
+            if (ageInHours < 24) {
+                console.log(`Klipy Cache Hit: "${query}"`);
+                return cacheData.results;
+            }
+        }
+    } catch (e) {
+        if (!isMockAdminActive()) {
+            console.warn('Cache check failed:', e);
+        }
     }
 
     try {
@@ -168,7 +194,24 @@ export async function searchKlipy(
         }
 
         console.log(`Klipy returned ${items.length} items`);
-        return items.map((item: any) => transformKlipyResponse(item, type));
+        const transformedResults = items.map((item: any) => transformKlipyResponse(item, type));
+
+        // Save to Cache (Background)
+        try {
+            setDoc(doc(db, 'search_cache', cacheKey), {
+                term: query.toLowerCase().trim(),
+                results: transformedResults,
+                updatedAt: serverTimestamp()
+            }).catch(e => {
+                if (!isMockAdminActive()) {
+                    console.warn('Cache save failed:', e);
+                }
+            });
+        } catch (e) {
+            // Non-blocking
+        }
+
+        return transformedResults;
     } catch (error) {
         console.error('Klipy search failed:', error);
         return fallbackSearch(query, type, limit);

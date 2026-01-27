@@ -35,7 +35,9 @@ export default function ContentLibrary() {
     const [searchTerm, setSearchTerm] = useState('');
     const [statusFilter, setStatusFilter] = useState<GifStatus | 'all'>('all');
     const [selectedGif, setSelectedGif] = useState<LibraryGIF | null>(null);
+    const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
     const [processing, setProcessing] = useState<string | null>(null);
+    const [batchProcessing, setBatchProcessing] = useState(false);
 
     useEffect(() => {
         loadLibrary();
@@ -87,11 +89,58 @@ export default function ContentLibrary() {
         setProcessing(gifId);
         try {
             await updateGifStatus(gifId, 'archived');
-            loadLibrary();
+            setGifs(gifs.map(g => g.id === gifId ? { ...g, status: 'archived' } : g));
         } catch (error) {
             console.error('Failed to archive:', error);
         } finally {
             setProcessing(null);
+        }
+    };
+
+    const handleBatchArchive = async () => {
+        if (selectedIds.size === 0) return;
+        if (!confirm(`Archive ${selectedIds.size} selected GIFs?`)) return;
+
+        setBatchProcessing(true);
+        try {
+            await Promise.all(Array.from(selectedIds).map((id: string) => updateGifStatus(id, 'archived')));
+            loadLibrary();
+            setSelectedIds(new Set());
+        } catch (error) {
+            console.error('Batch archive failed:', error);
+        } finally {
+            setBatchProcessing(false);
+        }
+    };
+
+    const handleBatchDelete = async () => {
+        if (selectedIds.size === 0) return;
+        if (!confirm(`Permanently delete ${selectedIds.size} selected GIFs?`)) return;
+
+        setBatchProcessing(true);
+        try {
+            await Promise.all(Array.from(selectedIds).map((id: string) => deleteGif(id)));
+            setGifs(gifs.filter(g => !selectedIds.has(g.id)));
+            setSelectedIds(new Set());
+        } catch (error) {
+            console.error('Batch delete failed:', error);
+        } finally {
+            setBatchProcessing(false);
+        }
+    };
+
+    const toggleSelect = (id: string) => {
+        const next = new Set(selectedIds);
+        if (next.has(id)) next.delete(id);
+        else next.add(id);
+        setSelectedIds(next);
+    };
+
+    const toggleSelectAll = () => {
+        if (selectedIds.size === filteredGifs.length) {
+            setSelectedIds(new Set());
+        } else {
+            setSelectedIds(new Set(filteredGifs.map(g => g.id)));
         }
     };
 
@@ -171,6 +220,27 @@ export default function ContentLibrary() {
                         <option value="rejected">Rejected</option>
                         <option value="archived">Archived</option>
                     </select>
+
+                    {selectedIds.size > 0 && (
+                        <div className="flex items-center gap-2 animate-in fade-in slide-in-from-right-4">
+                            <button
+                                onClick={handleBatchArchive}
+                                disabled={batchProcessing}
+                                className="px-4 py-2 bg-white/10 border border-white/20 rounded-xl text-sm font-semibold hover:bg-white/20 transition-all flex items-center gap-2"
+                            >
+                                <Archive className="w-4 h-4" />
+                                Archive ({selectedIds.size})
+                            </button>
+                            <button
+                                onClick={handleBatchDelete}
+                                disabled={batchProcessing}
+                                className="px-4 py-2 bg-red-500/10 border border-red-500/20 rounded-xl text-sm font-semibold text-red-400 hover:bg-red-500/20 transition-all flex items-center gap-2"
+                            >
+                                <Trash2 className="w-4 h-4" />
+                                Delete ({selectedIds.size})
+                            </button>
+                        </div>
+                    )}
                 </div>
             </div>
 
@@ -179,18 +249,34 @@ export default function ContentLibrary() {
                 <div className="overflow-x-auto">
                     <table className="w-full">
                         <thead>
-                            <tr className="border-b border-white/10">
-                                <th className="text-left p-4 text-sm font-medium text-slate-400">GIF</th>
-                                <th className="text-left p-4 text-sm font-medium text-slate-400">Title</th>
-                                <th className="text-left p-4 text-sm font-medium text-slate-400">Status</th>
-                                <th className="text-left p-4 text-sm font-medium text-slate-400">Source</th>
-                                <th className="text-left p-4 text-sm font-medium text-slate-400">Downloads</th>
-                                <th className="text-left p-4 text-sm font-medium text-slate-400">Actions</th>
+                            <tr className="border-b border-white/10 text-left">
+                                <th className="p-4 w-10">
+                                    <input
+                                        type="checkbox"
+                                        checked={selectedIds.size === filteredGifs.length && filteredGifs.length > 0}
+                                        onChange={toggleSelectAll}
+                                        className="w-4 h-4 rounded border-white/20 bg-white/5 text-red-500 focus:ring-red-500/50"
+                                    />
+                                </th>
+                                <th className="p-4 text-sm font-medium text-slate-400">GIF</th>
+                                <th className="p-4 text-sm font-medium text-slate-400">Title</th>
+                                <th className="p-4 text-sm font-medium text-slate-400">Status</th>
+                                <th className="p-4 text-sm font-medium text-slate-400">Source</th>
+                                <th className="p-4 text-sm font-medium text-slate-400">Downloads</th>
+                                <th className="p-4 text-sm font-medium text-slate-400">Actions</th>
                             </tr>
                         </thead>
                         <tbody>
                             {filteredGifs.map((gif) => (
-                                <tr key={gif.id} className="border-b border-white/5 hover:bg-white/5 transition-colors">
+                                <tr key={gif.id} className={`border-b border-white/5 hover:bg-white/5 transition-colors ${selectedIds.has(gif.id) ? 'bg-white/5' : ''}`}>
+                                    <td className="p-4">
+                                        <input
+                                            type="checkbox"
+                                            checked={selectedIds.has(gif.id)}
+                                            onChange={() => toggleSelect(gif.id)}
+                                            className="w-4 h-4 rounded border-white/20 bg-white/5 text-red-500 focus:ring-red-500/50"
+                                        />
+                                    </td>
                                     <td className="p-4">
                                         <img
                                             src={gif.thumbnailUrl || gif.url}

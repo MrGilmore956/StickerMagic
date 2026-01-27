@@ -2,52 +2,54 @@
  * Saucy App - Main Application Router
  * 
  * Routes:
- * - / : User homepage (browse GIFs)
- * - /create : Legacy create page
+ * - / : User homepage (browse GIFs) - PUBLIC (actions require auth)
+ * - /create : Create page - REQUIRES AUTH
  * - /admin : Admin portal (protected)
+ * - /login : Login page
+ * - /gif/:id : Individual GIF page (for sharing)
  */
 
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { User } from 'firebase/auth';
 import { initAuthListener } from './services/authService';
+import { ensureUserProfile, UserProfile } from './services/userProfileService';
 
 // Pages
 import HomePage from './pages/HomePage';
 import CreateTab from './components/CreateTab';
+import LoginPage from './pages/LoginPage';
 
 // Admin pages (lazy loaded)
 const AdminPortal = React.lazy(() => import('./pages/admin/AdminPortal'));
+const SauceBox = React.lazy(() => import('./pages/SauceBox'));
 const LogoPreview = React.lazy(() => import('./pages/LogoPreview'));
-
-// DEV MODE: Set to true to enable admin access without login (for testing)
-const DEV_MODE = true;
 
 const App: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
-  const [isAdmin, setIsAdmin] = useState(DEV_MODE); // Start with DEV_MODE value
 
   useEffect(() => {
-    // If DEV_MODE is enabled, skip auth and grant admin access
-    if (DEV_MODE) {
-      setLoading(false);
-      setIsAdmin(true);
-      return;
-    }
-
     const unsubscribe = initAuthListener(async (authUser) => {
       setUser(authUser);
 
-      // Check admin status
       if (authUser) {
-        // Check if email is in admin list
-        const adminEmails = [
-          'brntay956@gmail.com', // Primary admin
-        ];
-        setIsAdmin(adminEmails.includes(authUser.email || ''));
+        // Load or create user profile from Firestore
+        try {
+          const profile = await ensureUserProfile(
+            authUser.uid,
+            authUser.email || '',
+            authUser.displayName || '',
+            authUser.photoURL || ''
+          );
+          setUserProfile(profile);
+        } catch (error) {
+          console.error('Failed to load user profile:', error);
+          setUserProfile(null);
+        }
       } else {
-        setIsAdmin(false);
+        setUserProfile(null);
       }
 
       setLoading(false);
@@ -64,6 +66,8 @@ const App: React.FC = () => {
     );
   }
 
+  const isAuthenticated = user !== null;
+
   return (
     <Router>
       <React.Suspense
@@ -74,22 +78,46 @@ const App: React.FC = () => {
         }
       >
         <Routes>
-          {/* User Homepage - Browse GIFs */}
+          {/* Login Page */}
+          <Route
+            path="/login"
+            element={isAuthenticated ? <Navigate to="/" replace /> : <LoginPage />}
+          />
+
+          {/* Homepage - PUBLIC (actions require auth at component level) */}
           <Route path="/" element={<HomePage />} />
 
-          {/* Legacy Create Page */}
-          <Route path="/create" element={<CreateTab />} />
+          {/* Create Page - Requires Auth */}
+          <Route
+            path="/create"
+            element={isAuthenticated ? <CreateTab /> : <Navigate to="/login" replace />}
+          />
 
-          {/* Admin Portal - Protected */}
+          {/* Sauce Box - Requires Auth */}
+          <Route
+            path="/saucebox"
+            element={isAuthenticated ? <SauceBox /> : <Navigate to="/login" replace />}
+          />
+
+          {/* Admin Portal - Protected (requires auth + admin role) */}
           <Route
             path="/admin/*"
             element={
-              isAdmin ? <AdminPortal /> : <Navigate to="/" replace />
+              !isAuthenticated ? (
+                <Navigate to="/login" replace />
+              ) : userProfile?.role === 'admin' ? (
+                <AdminPortal />
+              ) : (
+                <Navigate to="/" replace />
+              )
             }
           />
 
-          {/* Logo Preview - For testing new logos */}
-          <Route path="/logo-preview" element={<LogoPreview />} />
+          {/* Logo Preview */}
+          <Route
+            path="/logo-preview"
+            element={isAuthenticated ? <LogoPreview /> : <Navigate to="/login" replace />}
+          />
 
           {/* Catch-all redirect */}
           <Route path="*" element={<Navigate to="/" replace />} />
