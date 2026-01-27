@@ -1,50 +1,16 @@
 
 import { GoogleGenAI } from "@google/genai";
-import { Message, StickerSize } from "../types";
+import { Message, StickerSize, KanbanTask, TaskStatus, TaskPriority } from "../types";
 import { getSaucyApiKey } from "./authService";
 import { removeBackgroundML, removeBackgroundSimple } from "./backgroundRemover";
 
-/**
- * SIMULATED Text Removal for Demo Mode
- * This masks the bottom portion of the image where text usually resides
- * to provide a visual demonstration without needing a real API call.
- */
-const simulateTextRemoval = async (base64Data: string): Promise<string> => {
-  return new Promise((resolve) => {
-    const img = new Image();
-    img.crossOrigin = "anonymous";
-    img.onload = () => {
-      const canvas = document.createElement('canvas');
-      canvas.width = img.width;
-      canvas.height = img.height;
-      const ctx = canvas.getContext('2d')!;
-      ctx.drawImage(img, 0, 0);
 
-      // Mask bottom 25% (typical text area)
-      const maskHeight = Math.floor(img.height * 0.25);
-      const maskY = img.height - maskHeight;
-
-      // Sample color from the middle to use as filler
-      const sample = ctx.getImageData(10, maskHeight, 1, 1).data;
-      ctx.fillStyle = `rgb(${sample[0]}, ${sample[1]}, ${sample[2]})`;
-      ctx.fillRect(0, maskY, img.width, maskHeight);
-
-      // Mask top right (typical watermark area)
-      ctx.fillRect(img.width - 150, 0, 150, 60);
-
-      resolve(canvas.toDataURL('image/png'));
-    };
-    img.src = base64Data;
-  });
-};
 
 export const removeTextMagic = async (base64Data: string, mimeType: string): Promise<string> => {
-  const { key, isDemo } = await getSaucyApiKey();
+  const { key, error } = await getSaucyApiKey();
 
-  if (isDemo) {
-    console.log("Running in DEMO MODE - Simulating text removal...");
-    await new Promise(r => setTimeout(r, 1200));
-    return await simulateTextRemoval(base64Data);
+  if (error) {
+    throw new Error(error);
   }
 
   const ai = new GoogleGenAI({ apiKey: key });
@@ -111,11 +77,10 @@ export const removeTextMagic = async (base64Data: string, mimeType: string): Pro
 };
 
 export const generateStickerFromPrompt = async (prompt: string, size: StickerSize): Promise<string> => {
-  const { key, isDemo } = await getSaucyApiKey();
+  const { key, error } = await getSaucyApiKey();
 
-  if (isDemo) {
-    await new Promise(r => setTimeout(r, 2000));
-    return "https://images.unsplash.com/photo-1618331835717-801e976710b2?q=80&w=1000&auto=format&fit=crop";
+  if (error) {
+    throw new Error(error);
   }
 
   const ai = new GoogleGenAI({ apiKey: key });
@@ -147,10 +112,10 @@ export const generateStickerFromPrompt = async (prompt: string, size: StickerSiz
 };
 
 export const chatWithAssistant = async (messages: Message[]): Promise<string> => {
-  const { key, isDemo } = await getSaucyApiKey();
+  const { key, error } = await getSaucyApiKey();
 
-  if (isDemo) {
-    return "I'm currently in DEMO MODE. I can show you how the UI works, but for real AI text removal and sticker generation, you'll need to click 'ACTIVATE PRO' and enter your Gemini API key.";
+  if (error) {
+    return `Error: ${error}`;
   }
 
   const ai = new GoogleGenAI({ apiKey: key });
@@ -172,12 +137,10 @@ export const askSaucy = async (
   imageData: { base64: string; mimeType: string }[],
   mode: 'sticker' | 'animation'
 ): Promise<string> => {
-  const { key, isDemo } = await getSaucyApiKey();
+  const { key, error } = await getSaucyApiKey();
 
-  if (isDemo) {
-    return mode === 'animation'
-      ? `Great mashup potential! Try: "Epic crossover moment with dramatic reactions and comedic timing"`
-      : `Nice images! Try: "Bold cartoon mashup with exaggerated expressions"`;
+  if (error) {
+    return "Please add a Gemini API key in settings to get AI suggestions!";
   }
 
   const ai = new GoogleGenAI({ apiKey: key });
@@ -276,19 +239,10 @@ export const refineSuggestion = async (
   imageData: { base64: string; mimeType: string }[],
   mode: 'sticker' | 'animation'
 ): Promise<string> => {
-  const { key, isDemo } = await getSaucyApiKey();
+  const { key, error } = await getSaucyApiKey();
 
-  if (isDemo) {
-    // Simulate refinement in demo mode
-    await new Promise(r => setTimeout(r, 800));
-    const demoResponses: Record<string, string> = {
-      'funnier': `${currentPrompt} but with exaggerated silly expressions and meme energy`,
-      'spicier': `${currentPrompt} with intense dramatic flair and bold energy`,
-      'softer': `${currentPrompt} but gentler, more subtle and calming`,
-      'dramatic': `${currentPrompt} in an epic cinematic style with intense emotions`,
-    };
-    const key = Object.keys(demoResponses).find(k => userFeedback.toLowerCase().includes(k));
-    return key ? demoResponses[key] : `Refined version: ${currentPrompt} with ${userFeedback}`;
+  if (error) {
+    return currentPrompt;
   }
 
   const ai = new GoogleGenAI({ apiKey: key });
@@ -395,25 +349,14 @@ export const getSaucyRecommendation = async (query: string): Promise<{
   sourceQuery: string;
   remixAction?: string;
 }> => {
-  const { key, isDemo } = await getSaucyApiKey();
+  const { key, error } = await getSaucyApiKey();
 
-  if (isDemo) {
-    // Return clever demo responses for common queries
-    const q = query.toLowerCase();
-    if (q.includes('birthday') || q.includes('party')) {
-      return {
-        type: 'remix',
-        title: "The Ultimate Birthday Glow-Up",
-        description: "That cat is cute, but imagine it with a neon party hat and 3D confetti! 🔥",
-        sourceQuery: "funny festive cat",
-        remixAction: "Add a 3D party hat and rainbow confetti burst"
-      };
-    }
+  if (error) {
     return {
       type: 'trending',
-      title: `The ${q.charAt(0).toUpperCase() + q.slice(1)} Vault`,
-      description: `I've scoured the depths of the internet to find the absolut best ${q} sauce for you.`,
-      sourceQuery: q
+      title: "Trending Choice",
+      description: "Connect your Gemini API key to get personalized recommendations.",
+      sourceQuery: query
     };
   }
 
@@ -450,6 +393,96 @@ export const getSaucyRecommendation = async (query: string): Promise<{
       title: "The trending choice",
       description: "Found some fire content for you.",
       sourceQuery: query
+    };
+  }
+};
+
+/**
+ * AI Command Processor for Kanban Tasks
+ * Translates natural language into structured actions
+ */
+export const processTaskCommand = async (
+  command: string,
+  currentTasks: KanbanTask[]
+): Promise<{
+  success: boolean;
+  message: string;
+  actions: any[];
+}> => {
+  const { key, error } = await getSaucyApiKey();
+
+  if (error) {
+    return { success: false, message: "Gemini API key missing", actions: [] };
+  }
+
+  const ai = new GoogleGenAI({ apiKey: key });
+
+  // Create a condensed version of tasks for the prompt to save tokens
+  const taskSummary = currentTasks.map(t => ({
+    id: t.id,
+    title: t.title,
+    status: t.status
+  }));
+
+  const prompt = `You are Saucy's AI Project Manager. A user is managing a Kanban board with three columns: 'todo', 'in-progress', and 'done'.
+  
+  CURRENT TASKS:
+  ${JSON.stringify(taskSummary, null, 2)}
+  
+  USER COMMAND: "${command}"
+  
+  Analyze the command and determine the necessary actions. You can CREATE, UPDATE, MOVE, or DELETE tasks.
+  
+  Output ONLY a JSON object in this format:
+  {
+    "success": true,
+    "message": "Friendly confirmation of what you did",
+    "actions": [
+      {
+        "type": "create",
+        "payload": { "title": "...", "description": "...", "status": "todo", "priority": "medium" }
+      },
+      {
+        "type": "move",
+        "taskId": "task_id_here",
+        "payload": { "status": "in-progress" }
+      },
+      {
+        "type": "update",
+        "taskId": "task_id_here",
+        "payload": { "title": "New Title", "priority": "high" }
+      },
+      {
+        "type": "delete",
+        "taskId": "task_id_here"
+      }
+    ]
+  }
+  
+  RULES:
+  1. If moving a task, try to find the matching task by title.
+  2. If the user says "mark as completed" or "finish", move to 'done'.
+  3. If multiple actions are needed (e.g., "move task A to in progress and create task B"), include all in the actions array.
+  4. If you cannot find the task or understand the command, set success to false and explain why in the message.
+  5. BE CONCISE. BE HELPUL. RESPOND ONLY WITH THE JSON.`;
+
+  try {
+    const result = await ai.models.generateContent({
+      model: 'gemini-1.5-flash',
+      contents: [{ role: 'user', parts: [{ text: prompt }] }],
+    });
+
+    const text = result.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    const jsonStr = text.match(/\{[\s\S]*\}/)?.[0] || '';
+    const parsedResult = JSON.parse(jsonStr);
+
+    return parsedResult;
+  } catch (err) {
+    console.error('AI Task Command failed:', err);
+    return {
+      success: false,
+      message: "I hit a glitch trying to process that. Could you try rephrasing?",
+      actions: []
     };
   }
 };

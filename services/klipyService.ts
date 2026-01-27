@@ -15,7 +15,6 @@
 
 import { db } from './firebaseConfig';
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
-import { isMockAdminActive } from './authService';
 
 // API Configuration
 const KLIPY_API_KEY = import.meta.env.VITE_KLIPY_API_KEY || '';
@@ -153,9 +152,7 @@ export async function searchKlipy(
             }
         }
     } catch (e) {
-        if (!isMockAdminActive()) {
-            console.warn('Cache check failed:', e);
-        }
+        console.warn('Cache check failed:', e);
     }
 
     try {
@@ -203,9 +200,7 @@ export async function searchKlipy(
                 results: transformedResults,
                 updatedAt: serverTimestamp()
             }).catch(e => {
-                if (!isMockAdminActive()) {
-                    console.warn('Cache save failed:', e);
-                }
+                console.warn('Cache save failed:', e);
             });
         } catch (e) {
             // Non-blocking

@@ -1,5 +1,7 @@
 {
-  "projects": {},
+  "projects": {
+    "default": "saucy-ai"
+  },
   "targets": {},
   "etags": {}
 }

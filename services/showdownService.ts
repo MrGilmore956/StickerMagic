@@ -50,36 +50,8 @@ export interface UserSauceStats {
 }
 
 // ============================================================================
-// MOCK DATA (for demo mode)
-// ============================================================================
-
-const MOCK_SHOWDOWN: Showdown = {
-    id: '2026-01-26',
-    gifA: {
-        id: 'gif-mrdeeds',
-        title: 'Mr. Deeds - Very Sneaky',
-        url: 'https://media.giphy.com/media/uk3MXpLZ84kChF8Sky/giphy.gif',
-        votes: 156
-    },
-    gifB: {
-        id: 'gif-happygilmore',
-        title: 'Happy Gilmore - The Price is Wrong',
-        url: 'https://media.giphy.com/media/xRX1KqXHrw0c8/giphy.gif',
-        votes: 142
-    },
-    endsAt: new Date(new Date().setHours(23, 59, 59, 999)),
-    status: 'active',
-    winner: null,
-    createdAt: new Date(new Date().setHours(0, 0, 0, 0))
-};
-
-// ============================================================================
 // SHOWDOWN SERVICE
 // ============================================================================
-
-const isMockMode = () => {
-    return localStorage.getItem('mockAdminMode') === 'true';
-};
 
 /**
  * Get today's date string for document IDs
@@ -93,10 +65,6 @@ const getTodayId = (): string => {
  * Get the current active showdown
  */
 export const getCurrentShowdown = async (): Promise<Showdown | null> => {
-    if (isMockMode()) {
-        return MOCK_SHOWDOWN;
-    }
-
     try {
         const todayId = getTodayId();
         const showdownRef = doc(db, 'showdowns', todayId);
@@ -128,11 +96,6 @@ export const getCurrentShowdown = async (): Promise<Showdown | null> => {
 export const subscribeToShowdown = (
     callback: (showdown: Showdown | null) => void
 ): (() => void) => {
-    if (isMockMode()) {
-        callback(MOCK_SHOWDOWN);
-        return () => { };
-    }
-
     const todayId = getTodayId();
     const showdownRef = doc(db, 'showdowns', todayId);
 
@@ -162,11 +125,6 @@ export const castVote = async (
     userId: string,
     choice: 'A' | 'B'
 ): Promise<{ success: boolean; message: string }> => {
-    if (isMockMode()) {
-        console.log(`[Mock] Vote cast for GIF ${choice} by user ${userId}`);
-        return { success: true, message: 'Vote recorded!' };
-    }
-
     try {
         const todayId = getTodayId();
         const voteId = `${todayId}_${userId}`;
@@ -212,10 +170,6 @@ export const castVote = async (
  * Check if user has already voted today
  */
 export const hasUserVoted = async (userId: string): Promise<boolean> => {
-    if (isMockMode()) {
-        return false;
-    }
-
     try {
         const todayId = getTodayId();
         const voteId = `${todayId}_${userId}`;
@@ -232,10 +186,6 @@ export const hasUserVoted = async (userId: string): Promise<boolean> => {
  * Get user's vote for today
  */
 export const getUserVote = async (userId: string): Promise<'A' | 'B' | null> => {
-    if (isMockMode()) {
-        return null;
-    }
-
     try {
         const todayId = getTodayId();
         const voteId = `${todayId}_${userId}`;
@@ -257,10 +207,6 @@ export const getUserVote = async (userId: string): Promise<'A' | 'B' | null> => 
  * Get user's Sauce Sense stats
  */
 export const getUserSauceStats = async (userId: string): Promise<UserSauceStats> => {
-    if (isMockMode()) {
-        return { sauceSenseScore: 42, totalVotes: 50, correctPicks: 42 };
-    }
-
     try {
         const userRef = doc(db, 'users', userId);
         const userSnap = await getDoc(userRef);

@@ -1,3 +1,7 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
 /* Stickify Dark Theme Styles */
 :root {
     --bg-primary: #0a0a0b;
@@ -34,6 +38,13 @@ body {
     background: rgba(30, 41, 59, 0.7);
     backdrop-filter: blur(10px);
     border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Light glass variation sometimes used in demo */
+.glass-light {
+    background: rgba(255, 255, 255, 0.7);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
 .card {

@@ -33,27 +33,27 @@ service cloud.firestore {
       allow write: if request.auth != null;
     }
     
-    // Analytics - public write (for tracking), auth required for full read
+    // Analytics - Anyone can track (write), but only auth users can read
     match /analytics/{document=**} {
-      allow read: if true;
+      allow read: if request.auth != null;
       allow write: if true;
     }
     
     // Analytics Searches - track search terms
     match /analytics_searches/{searchTerm} {
-      allow read: if true;
+      allow read: if request.auth != null;
       allow write: if true;
     }
     
     // Analytics Daily - daily stats
     match /analytics_daily/{date} {
-      allow read: if true;
+      allow read: if request.auth != null;
       allow write: if true;
     }
 
-    // Search Cache - Public read/write (demo mode)
+    // Search Cache - Auth required for read/write
     match /search_cache/{cacheKey} {
-      allow read, write: if true;
+      allow read, write: if request.auth != null;
     }
 
     // Favorites - Users can only see their own
@@ -63,14 +63,14 @@ service cloud.firestore {
 
     // Campaigns - Protected (Admin only)
     match /campaigns/{campaignId} {
-      allow read, write: if request.auth != null; // Simplified for demo, should check role
+      allow read, write: if request.auth != null; 
     }
 
     // Sauce Showdown - Public read, authenticated vote
     match /showdowns/{dayId} {
       allow read: if true;
       allow update: if request.auth != null;
-      allow create, delete: if request.auth != null; // Should be admin only in production
+      allow create, delete: if request.auth != null; 
     }
 
     match /showdownVotes/{voteId} {

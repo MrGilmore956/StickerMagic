@@ -470,7 +470,12 @@ export default function HomePage() {
                     import('../services/geminiService').then(m => m.getSaucyRecommendation(debouncedSearch))
                 ]);
 
-                setSearchResults(results);
+                // Deduplicate search results by ID
+                const uniqueResults = results.filter((item, index, self) =>
+                    index === self.findIndex((t) => t.id === item.id)
+                );
+
+                setSearchResults(uniqueResults);
                 setAiRecommendation(recommendation);
 
                 // Fetch a special GIF for the recommendation
@@ -893,7 +898,12 @@ export default function HomePage() {
                 createdAt: new Date(),
             }));
 
-            setGifs(prev => [...prev, ...newItems]);
+            setGifs(prev => {
+                const combined = [...prev, ...newItems];
+                return combined.filter((item, index, self) =>
+                    index === self.findIndex((t) => t.id === item.id)
+                );
+            });
             setOffset(prev => prev + 24);
             setHasMore(klipyItems.length >= 24);
         } catch (error) {
@@ -1051,9 +1061,9 @@ export default function HomePage() {
                     {/* Logo - Far Left */}
                     <a href="/" className="flex items-center shrink-0">
                         <img
-                            src="/logos/saucy_drip_dark.png"
+                            src="/logos/saucy_bottle_flame.png"
                             alt="Saucy"
-                            className="h-40 w-auto object-contain"
+                            className="h-10 w-auto object-contain"
                         />
                     </a>
 

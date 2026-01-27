@@ -29,7 +29,8 @@ import {
     Download,
     Users,
     Database,
-    Loader2
+    Loader2,
+    Kanban
 } from 'lucide-react';
 import { User } from 'firebase/auth';
 import { signOut, initAuthListener } from '../../services/authService';
@@ -43,6 +44,7 @@ import ContentLibrary from './ContentLibrary';
 import AIGeneration from './AIGeneration';
 import SocialCampaigns from './SocialCampaigns';
 import Analytics from './Analytics';
+import ProjectBoard from './ProjectBoard';
 
 
 export default function AdminPortal() {
@@ -110,6 +112,7 @@ export default function AdminPortal() {
         { path: '/admin/library', icon: Library, label: 'Content Library' },
         { path: '/admin/generate', icon: Sparkles, label: 'AI Generation' },
         { path: '/admin/campaigns', icon: Megaphone, label: 'Social Campaigns' },
+        { path: '/admin/board', icon: Kanban, label: 'Project Board' },
         { path: '/admin/analytics', icon: BarChart3, label: 'Analytics' },
         { path: '/admin/settings', icon: Settings, label: 'Settings' },
     ];
@@ -248,6 +251,7 @@ export default function AdminPortal() {
                         <Route path="/library" element={<ContentLibrary />} />
                         <Route path="/generate" element={<AIGeneration />} />
                         <Route path="/campaigns" element={<SocialCampaigns />} />
+                        <Route path="/board" element={<ProjectBoard />} />
                         <Route path="/analytics" element={<Analytics />} />
                         <Route path="/settings" element={<AdminSettings />} />
                     </Routes>
