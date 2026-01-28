@@ -135,6 +135,11 @@
 **Date Completed**: _______________  
 **Issues Found**: 
 
+### 📝 Tomorrow's To-Do
+- [ ] Decide on copyright/branding for footer and README
+- [ ] Complete manual testing checklist above
+- [ ] Fix any issues found during testing
+
 ---
 
 ## Quick Links
