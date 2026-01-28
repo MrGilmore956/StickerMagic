@@ -5,13 +5,15 @@
  * Features Google Sign-In with a premium, branded experience.
  */
 
-import React, { useState } from 'react';
-import { Loader2 } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Loader2, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { signInWithGoogle, signInWithEmail, signUpWithEmail, sendPasswordReset } from '../services/authService';
 
 type AuthMode = 'signin' | 'signup' | 'reset';
 
 export default function LoginPage() {
+    const navigate = useNavigate();
     const [loading, setLoading] = useState(false);
     const [mode, setMode] = useState<AuthMode>('signin');
     const [email, setEmail] = useState('');
@@ -22,10 +24,14 @@ export default function LoginPage() {
     const handleGoogleSignIn = async () => {
         setLoading(true);
         setError(null);
+        console.log("Sign-in process started: Google");
         try {
-            await signInWithGoogle();
-        } catch (err) {
-            setError('Sign in failed. Please try again.');
+            const user = await signInWithGoogle();
+            console.log("Sign-in process success: Google", user.email);
+            // App.tsx handles navigation for Google Sign-In via AuthListener
+        } catch (err: any) {
+            console.error('Google sign-in failed:', err);
+            setError(`Sign in failed: ${err.message || 'Please try again.'}`);
         } finally {
             setLoading(false);
         }
@@ -39,15 +45,17 @@ export default function LoginPage() {
 
         try {
             if (mode === 'signin') {
+                console.log("Sign-in process started: Email");
                 const result = await signInWithEmail(email, password);
                 if (result.error) {
                     setError(result.error);
                 } else {
-                    // Redirect based on role
+                    console.log("Sign-in process success: Email", email);
+                    // Redirect based on role using navigate for SPA smoothness
                     if (email === 'admin@saucy.com') {
-                        window.location.href = '/admin';
+                        navigate('/admin');
                     } else {
-                        window.location.href = '/';
+                        navigate('/');
                     }
                 }
             } else if (mode === 'signup') {

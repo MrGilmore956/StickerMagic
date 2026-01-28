@@ -21,7 +21,8 @@ import {
     Trophy,
     Users,
     Clock,
-    Swords
+    Swords,
+    Layout
 } from 'lucide-react';
 import {
     getCurrentShowdown,
@@ -36,6 +37,7 @@ import {
     VoterInfo
 } from '../../services/showdownService';
 import { searchKlipy, KlipyItem } from '../../services/klipyService';
+import { getAppSettings, updateAppSettings, AppSettings } from '../../services/settingsService';
 
 const ShowdownManager: React.FC = () => {
     const [showdown, setShowdown] = useState<Showdown | null>(null);
@@ -57,9 +59,23 @@ const ShowdownManager: React.FC = () => {
     const [voters, setVoters] = useState<VoterInfo[]>([]);
     const [loadingVoters, setLoadingVoters] = useState(false);
 
+    // Global Settings state
+    const [settings, setSettings] = useState<AppSettings | null>(null);
+    const [landingQuery, setLandingQuery] = useState('');
+    const [savingSettings, setSavingSettings] = useState(false);
+
     useEffect(() => {
         loadShowdown();
+        loadSettings();
     }, []);
+
+    const loadSettings = async () => {
+        const globalSettings = await getAppSettings();
+        if (globalSettings) {
+            setSettings(globalSettings);
+            setLandingQuery(globalSettings.landingCategoryOverride || '');
+        }
+    };
 
     const loadShowdown = async () => {
         setLoading(true);
@@ -144,6 +160,21 @@ const ShowdownManager: React.FC = () => {
         showMessage(result.success ? 'success' : 'error', result.message);
         if (result.success) await loadShowdown();
         setActionLoading(null);
+    };
+
+    const handleSaveSettings = async () => {
+        setSavingSettings(true);
+        try {
+            await updateAppSettings({
+                landingCategoryOverride: landingQuery.trim()
+            });
+            showMessage('success', 'Landing category updated!');
+            await loadSettings();
+        } catch (error) {
+            showMessage('error', 'Failed to update settings');
+        } finally {
+            setSavingSettings(false);
+        }
     };
 
     if (loading) {
@@ -335,8 +366,8 @@ const ShowdownManager: React.FC = () => {
                                                     </td>
                                                     <td className="py-3 pr-4">
                                                         <span className={`px-2 py-1 rounded-md text-xs font-bold ${voter.votedFor === 'A'
-                                                                ? 'bg-red-500/20 text-red-400'
-                                                                : 'bg-blue-500/20 text-blue-400'
+                                                            ? 'bg-red-500/20 text-red-400'
+                                                            : 'bg-blue-500/20 text-blue-400'
                                                             }`}>
                                                             {voter.votedFor === 'A' ? 'Challenger' : 'Defender'}
                                                         </span>
@@ -501,6 +532,43 @@ const ShowdownManager: React.FC = () => {
                         )}
                         Create Today's Showdown
                     </button>
+                </div>
+            </div>
+
+            {/* Landing Page Management */}
+            <div className="bg-white/5 rounded-2xl border border-white/10 p-4 sm:p-6 mb-8 mt-6">
+                <div className="flex items-center gap-3 mb-6">
+                    <Layout className="w-6 h-6 text-blue-500" />
+                    <h2 className="text-xl font-bold text-white">Home Page Management</h2>
+                </div>
+
+                <div className="max-w-xl">
+                    <div className="space-y-4">
+                        <div>
+                            <label className="block text-sm font-medium text-slate-400 mb-2">
+                                Landing Category Search Term (Overrides Day-of-Week)
+                            </label>
+                            <div className="flex gap-3">
+                                <input
+                                    type="text"
+                                    placeholder="e.g. 'coding', 'funny cat', 'celebration'"
+                                    value={landingQuery}
+                                    onChange={(e) => setLandingQuery(e.target.value)}
+                                    className="flex-1 px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+                                />
+                                <button
+                                    onClick={handleSaveSettings}
+                                    disabled={savingSettings}
+                                    className="px-6 py-3 rounded-xl bg-blue-500 text-white font-bold hover:bg-blue-600 disabled:opacity-50 transition-all shadow-lg shadow-blue-500/20"
+                                >
+                                    {savingSettings ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Save'}
+                                </button>
+                            </div>
+                            <p className="mt-2 text-xs text-slate-500">
+                                This term determines what GIFs appear in "Saucy's Pick" on the home page. Leave blank to return to default day-of-week logic.
+                            </p>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>

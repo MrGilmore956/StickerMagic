@@ -36,13 +36,13 @@ export const initAuthListener = (callback: (user: User | null) => void) => {
 /**
  * Sign in with Google
  */
-export const signInWithGoogle = async (): Promise<User | null> => {
+export const signInWithGoogle = async (): Promise<User> => {
     try {
         const result = await signInWithPopup(auth, googleProvider);
         return result.user;
     } catch (error) {
         console.error('Google sign-in failed:', error);
-        return null;
+        throw error;
     }
 };
 

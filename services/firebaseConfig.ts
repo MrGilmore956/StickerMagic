@@ -7,13 +7,22 @@ import { getAuth, GoogleAuthProvider } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 
 const firebaseConfig = {
-  apiKey: "AIzaSyAicHTuXhQcIb-IeL-J6AmSOqZVrAZRskw",
-  authDomain: "saucy-ai.firebaseapp.com",
-  projectId: "saucy-ai",
-  storageBucket: "saucy-ai.firebasestorage.app",
-  messagingSenderId: "1014453566642",
-  appId: "1:1014453566642:web:3962e84d09b876345a1dab"
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID
 };
+
+// Debug: Verify config is loaded (only in dev or if keys missing)
+if (!firebaseConfig.apiKey || !firebaseConfig.projectId) {
+  console.error("FIREBASE CONFIG ERROR: Missing credentials in environment variables!", {
+    hasKey: !!firebaseConfig.apiKey,
+    hasProjectId: !!firebaseConfig.projectId,
+    mode: import.meta.env.MODE
+  });
+}
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);

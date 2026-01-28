@@ -40,6 +40,7 @@ import { trackDownload, trackSearch, trackPageView } from '../services/analytics
 import { toggleFavorite, isFavorited } from '../services/favoritesService';
 import MemeEditor from '../components/MemeEditor';
 import SauceShowdown from '../components/SauceShowdown';
+import { subscribeToSettings } from '../services/settingsService';
 
 type TrendingPeriod = 'today' | 'week' | 'month' | 'allTime';
 type ContentRating = 'all' | 'pg' | 'pg13' | 'r' | 'unhinged';
@@ -77,7 +78,7 @@ interface Category {
     subcategories: SubCategory[];
 }
 
-const CATEGORIES: Category[] = [
+const DEFAULT_CATEGORIES: Category[] = [
     {
         id: 'saucys-pick',
         name: "Saucy's Pick",
@@ -375,7 +376,8 @@ export default function HomePage() {
     const [user, setUser] = useState<FirebaseUser | null>(null);
     const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
     const [gifs, setGifs] = useState<LibraryGIF[]>([]);
-    const [activeCategory, setActiveCategory] = useState<Category>(CATEGORIES[0]);
+    const [dynamicCategories, setDynamicCategories] = useState<Category[]>(DEFAULT_CATEGORIES);
+    const [activeCategory, setActiveCategory] = useState<Category>(DEFAULT_CATEGORIES[0]);
     const [showMemeEditor, setShowMemeEditor] = useState(false);
     const [gifOfTheDay, setGifOfTheDay] = useState<LibraryGIF | null>(null);
     const [loading, setLoading] = useState(true);
@@ -411,6 +413,12 @@ export default function HomePage() {
     // Store current query to use for loadMore
     const currentQueryRef = useRef<string>('');
 
+    // Day of the week logic for fallback
+    const getDayTerm = () => {
+        const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+        return days[new Date().getDay()];
+    };
+
     // Auth listener
     useEffect(() => {
         const unsubscribe = initAuthListener(async (authUser) => {
@@ -432,6 +440,38 @@ export default function HomePage() {
                 }
             } else {
                 setUserProfile(null);
+            }
+        });
+        return () => unsubscribe();
+    }, []);
+
+    // Listen to global app settings (for landing category override)
+    useEffect(() => {
+        const unsubscribe = subscribeToSettings((settings) => {
+            if (settings.landingCategoryOverride) {
+                console.log("Applying Landing Category override:", settings.landingCategoryOverride);
+                setDynamicCategories(prev => {
+                    const newCats = [...prev];
+                    if (newCats.length > 0) {
+                        newCats[0] = {
+                            ...newCats[0],
+                            searchTerm: settings.landingCategoryOverride || getDayTerm()
+                        };
+                    }
+                    return newCats;
+                });
+            } else {
+                // Return to default day-of-week logic
+                setDynamicCategories(prev => {
+                    const newCats = [...prev];
+                    if (newCats.length > 0) {
+                        newCats[0] = {
+                            ...newCats[0],
+                            searchTerm: getDayTerm()
+                        };
+                    }
+                    return newCats;
+                });
             }
         });
         return () => unsubscribe();
@@ -1185,7 +1225,7 @@ export default function HomePage() {
                         ref={categoriesRef}
                         className="flex items-center gap-2 overflow-x-auto scrollbar-hide pb-2 sm:flex-wrap sm:overflow-visible sm:pb-0 sm:gap-3"
                     >
-                        {CATEGORIES.map((category) => (
+                        {dynamicCategories.map((category) => (
                             <button
                                 key={category.id}
                                 onClick={() => handleCategoryClick(category)}
