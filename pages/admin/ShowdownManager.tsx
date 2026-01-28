@@ -30,8 +30,10 @@ import {
     endShowdownEarly,
     updateShowdownGifs,
     seedTestShowdown,
+    getShowdownVoters,
     Showdown,
-    ShowdownGIF
+    ShowdownGIF,
+    VoterInfo
 } from '../../services/showdownService';
 import { searchKlipy, KlipyItem } from '../../services/klipyService';
 
@@ -51,6 +53,10 @@ const ShowdownManager: React.FC = () => {
     const [searchingA, setSearchingA] = useState(false);
     const [searchingB, setSearchingB] = useState(false);
 
+    // Vote log state
+    const [voters, setVoters] = useState<VoterInfo[]>([]);
+    const [loadingVoters, setLoadingVoters] = useState(false);
+
     useEffect(() => {
         loadShowdown();
     }, []);
@@ -60,6 +66,18 @@ const ShowdownManager: React.FC = () => {
         const current = await getCurrentShowdown();
         setShowdown(current);
         setLoading(false);
+
+        // Load voters if there's an active showdown
+        if (current) {
+            loadVoters();
+        }
+    };
+
+    const loadVoters = async () => {
+        setLoadingVoters(true);
+        const voterList = await getShowdownVoters();
+        setVoters(voterList);
+        setLoadingVoters(false);
     };
 
     const showMessage = (type: 'success' | 'error', text: string) => {
@@ -262,6 +280,79 @@ const ShowdownManager: React.FC = () => {
                                 )}
                                 <span className="text-sm font-semibold">Seed Test</span>
                             </button>
+                        </div>
+
+                        {/* Vote Log Section */}
+                        <div className="mt-6 pt-6 border-t border-white/10">
+                            <div className="flex items-center justify-between mb-4">
+                                <div className="flex items-center gap-2">
+                                    <Users className="w-5 h-5 text-green-400" />
+                                    <h3 className="text-lg font-bold text-white">Vote Log</h3>
+                                    <span className="px-2 py-0.5 rounded-full bg-green-500/20 text-green-400 text-xs font-bold">
+                                        {voters.length} votes
+                                    </span>
+                                </div>
+                                <button
+                                    onClick={loadVoters}
+                                    disabled={loadingVoters}
+                                    className="p-2 rounded-lg bg-white/5 hover:bg-white/10 transition-colors disabled:opacity-50"
+                                >
+                                    <RotateCcw className={`w-4 h-4 text-slate-400 ${loadingVoters ? 'animate-spin' : ''}`} />
+                                </button>
+                            </div>
+
+                            {loadingVoters ? (
+                                <div className="flex items-center justify-center py-8">
+                                    <Loader2 className="w-6 h-6 text-white/40 animate-spin" />
+                                </div>
+                            ) : voters.length === 0 ? (
+                                <div className="text-center py-8 text-white/40">
+                                    <Users className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                                    <p>No votes yet</p>
+                                </div>
+                            ) : (
+                                <div className="overflow-x-auto">
+                                    <table className="w-full text-sm">
+                                        <thead>
+                                            <tr className="border-b border-white/10 text-white/60 text-left">
+                                                <th className="pb-2 pr-4">Voter</th>
+                                                <th className="pb-2 pr-4">Choice</th>
+                                                <th className="pb-2">Time</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {voters.map((voter, i) => (
+                                                <tr key={voter.odId} className="border-b border-white/5 hover:bg-white/5">
+                                                    <td className="py-3 pr-4">
+                                                        <div className="flex flex-col">
+                                                            <span className="text-white font-medium">
+                                                                {voter.displayName || 'Anonymous'}
+                                                            </span>
+                                                            <span className="text-white/40 text-xs">
+                                                                {voter.email || voter.odId.slice(0, 8) + '...'}
+                                                            </span>
+                                                        </div>
+                                                    </td>
+                                                    <td className="py-3 pr-4">
+                                                        <span className={`px-2 py-1 rounded-md text-xs font-bold ${voter.votedFor === 'A'
+                                                                ? 'bg-red-500/20 text-red-400'
+                                                                : 'bg-blue-500/20 text-blue-400'
+                                                            }`}>
+                                                            {voter.votedFor === 'A' ? 'Challenger' : 'Defender'}
+                                                        </span>
+                                                    </td>
+                                                    <td className="py-3 text-white/60">
+                                                        {voter.timestamp.toLocaleTimeString([], {
+                                                            hour: '2-digit',
+                                                            minute: '2-digit'
+                                                        })}
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            )}
                         </div>
                     </div>
                 ) : (

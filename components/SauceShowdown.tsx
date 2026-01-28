@@ -55,6 +55,21 @@ const SauceShowdown: React.FC<SauceShowdownProps> = ({ user, onVoteComplete }) =
 
     const handleVote = useCallback(async (choice: 'A' | 'B') => {
         if (!user?.uid || userVote || isVoting) return;
+
+        // Can't vote on fallback showdown - no real showdown exists
+        if (!showdown) {
+            setVoteMessage('No active showdown today. Check back tomorrow!');
+            setTimeout(() => setVoteMessage(null), 3000);
+            return;
+        }
+
+        // Check if showdown has expired (timer at 00:00:00)
+        if (timeRemaining.hours === 0 && timeRemaining.minutes === 0 && timeRemaining.seconds === 0) {
+            setVoteMessage('This showdown has ended!');
+            setTimeout(() => setVoteMessage(null), 3000);
+            return;
+        }
+
         setIsVoting(true);
         try {
             const result = await castVote(user.uid, choice);
@@ -71,7 +86,7 @@ const SauceShowdown: React.FC<SauceShowdownProps> = ({ user, onVoteComplete }) =
             setIsVoting(false);
             setTimeout(() => setVoteMessage(null), 3000);
         }
-    }, [user, userVote, isVoting, onVoteComplete]);
+    }, [user, userVote, isVoting, showdown, timeRemaining, onVoteComplete]);
 
     const handleSeed = async () => {
         setIsVoting(true);
@@ -118,6 +133,9 @@ const SauceShowdown: React.FC<SauceShowdownProps> = ({ user, onVoteComplete }) =
     const percentA = totalVotes > 0 ? Math.round(activeShowdown.gifA.votes / totalVotes * 100) : 50;
     const percentB = 100 - percentA;
 
+    // Check if showdown has expired (timer at 00:00:00)
+    const isExpired = showdown && timeRemaining.hours === 0 && timeRemaining.minutes === 0 && timeRemaining.seconds === 0;
+
     // Individual GIF Card - Matches Library Format
     const GifCard = ({
         gif,
@@ -137,6 +155,13 @@ const SauceShowdown: React.FC<SauceShowdownProps> = ({ user, onVoteComplete }) =
         const isHovered = hoveredGif === choice;
         const [imageError, setImageError] = useState(false);
 
+        // Determine winner when expired
+        const isWinner = isExpired && (
+            (choice === 'A' && activeShowdown.gifA.votes > activeShowdown.gifB.votes) ||
+            (choice === 'B' && activeShowdown.gifB.votes > activeShowdown.gifA.votes)
+        );
+        const isLoser = isExpired && !isWinner && activeShowdown.gifA.votes !== activeShowdown.gifB.votes;
+
         const colors = colorScheme === 'red'
             ? { text: 'text-red-400', bg: 'bg-red-500', hover: 'hover:border-red-500/50', ring: 'ring-red-500/30' }
             : { text: 'text-blue-400', bg: 'bg-blue-500', hover: 'hover:border-blue-500/50', ring: 'ring-blue-500/30' };
@@ -149,6 +174,7 @@ const SauceShowdown: React.FC<SauceShowdownProps> = ({ user, onVoteComplete }) =
                 className={`
                     w-64 sm:w-72 md:w-80 transition-all duration-200
                     ${isOtherSelected ? 'opacity-40' : ''}
+                    ${isLoser ? 'opacity-50' : ''}
                 `}
             >
                 {/* Label */}
@@ -164,8 +190,9 @@ const SauceShowdown: React.FC<SauceShowdownProps> = ({ user, onVoteComplete }) =
                         relative aspect-square rounded-xl overflow-hidden bg-white/5 cursor-pointer
                         transition-all duration-200 border border-white/10
                         ${isSelected ? 'border-green-500 ring-4 ring-green-500/20 shadow-[0_0_20px_rgba(34,197,94,0.3)]' : ''}
-                        ${isHovered && !userVote ? `border-white/30 ring-4 ${colors.ring}` : ''}
-                        ${!userVote && user ? 'hover:scale-105' : ''}
+                        ${isWinner ? `border-${colorScheme === 'red' ? 'red' : 'blue'}-500 ring-4 ${colors.ring}` : ''}
+                        ${isHovered && !userVote && !isExpired ? `border-white/30 ring-4 ${colors.ring}` : ''}
+                        ${!userVote && user && !isExpired ? 'hover:scale-105' : ''}
                     `}
                     onMouseEnter={() => setHoveredGif(choice)}
                     onMouseLeave={() => setHoveredGif(null)}
@@ -188,8 +215,15 @@ const SauceShowdown: React.FC<SauceShowdownProps> = ({ user, onVoteComplete }) =
                         </div>
                     )}
 
-                    {/* Hover Vote Overlay */}
-                    {isHovered && !userVote && user && (
+                    {/* Winner Overlay - Static when expired */}
+                    {isWinner && !isSelected && (
+                        <div className={`absolute inset-0 ${colorScheme === 'red' ? 'bg-red-500/40' : 'bg-blue-500/40'} flex items-center justify-center backdrop-blur-[2px]`}>
+                            <span className="text-white font-bold text-xl drop-shadow-lg">🏆 WINNER</span>
+                        </div>
+                    )}
+
+                    {/* Hover Vote Overlay - Only when not expired */}
+                    {isHovered && !userVote && user && !isExpired && (
                         <div className={`absolute inset-0 ${colorScheme === 'red' ? 'bg-red-500/40' : 'bg-blue-500/40'} flex items-center justify-center backdrop-blur-[2px]`}>
                             <span className="text-white font-bold text-xl drop-shadow-lg">VOTE</span>
                         </div>
@@ -203,7 +237,7 @@ const SauceShowdown: React.FC<SauceShowdownProps> = ({ user, onVoteComplete }) =
                     </h3>
                     <div className="flex items-center justify-center gap-3 text-xs text-white/40 mb-3">
                         <span>{gif.votes.toLocaleString()} votes</span>
-                        {userVote && (
+                        {(userVote || isExpired) && (
                             <span className={`font-bold ${colors.text}`}>{percent}%</span>
                         )}
                     </div>
@@ -211,18 +245,20 @@ const SauceShowdown: React.FC<SauceShowdownProps> = ({ user, onVoteComplete }) =
                     {/* Vote Button */}
                     <button
                         onClick={() => handleVote(choice)}
-                        disabled={!!userVote || isVoting || !user}
+                        disabled={!!userVote || isVoting || !user || isExpired}
                         className={`
                             w-full px-6 py-2 rounded-xl font-bold text-xs transition-all duration-200
-                            ${isSelected
-                                ? 'bg-green-500/20 text-green-400 border border-green-500/30'
-                                : userVote
-                                    ? 'bg-white/5 text-white/20 cursor-not-allowed border border-white/5'
-                                    : `${colors.bg} text-white hover:opacity-90 shadow-lg active:scale-95`
+                            ${isWinner
+                                ? `${colors.bg} text-white shadow-lg`
+                                : isSelected
+                                    ? 'bg-green-500/20 text-green-400 border border-green-500/30'
+                                    : userVote || isExpired
+                                        ? 'bg-white/5 text-white/20 cursor-not-allowed border border-white/5'
+                                        : `${colors.bg} text-white hover:opacity-90 shadow-lg active:scale-95`
                             }
                         `}
                     >
-                        {isSelected ? '✓ Voted' : 'VOTE'}
+                        {isWinner ? '🏆 WINNER' : isSelected ? '✓ Voted' : isExpired ? 'Ended' : 'VOTE'}
                     </button>
                 </div>
             </div>

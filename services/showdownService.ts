@@ -145,6 +145,19 @@ export const castVote = async (
                 throw new Error('No active showdown');
             }
 
+            const showdownData = showdownSnap.data();
+
+            // Check if showdown has ended
+            const endsAt = showdownData.endsAt?.toDate?.() || showdownData.endsAt;
+            if (endsAt && new Date() > endsAt) {
+                throw new Error('Showdown has ended');
+            }
+
+            // Check if showdown is already completed
+            if (showdownData.status === 'completed') {
+                throw new Error('Showdown has ended');
+            }
+
             // Record user's vote
             transaction.set(voteRef, {
                 odId: userId,
@@ -160,8 +173,11 @@ export const castVote = async (
         });
 
         return { success: true, message: 'Vote recorded!' };
-    } catch (error) {
+    } catch (error: any) {
         console.error('Error casting vote:', error);
+        if (error.message === 'Showdown has ended') {
+            return { success: false, message: 'This showdown has ended!' };
+        }
         return { success: false, message: 'Failed to record vote' };
     }
 };
@@ -179,6 +195,66 @@ export const hasUserVoted = async (userId: string): Promise<boolean> => {
     } catch (error) {
         console.error('Error checking vote status:', error);
         return false;
+    }
+};
+
+export interface VoterInfo {
+    odId: string;
+    votedFor: 'A' | 'B';
+    timestamp: Date;
+    email?: string;
+    displayName?: string;
+}
+
+/**
+ * Get all voters for today's showdown with user details (Admin only)
+ */
+export const getShowdownVoters = async (): Promise<VoterInfo[]> => {
+    try {
+        const todayId = getTodayId();
+        const votesRef = collection(db, 'showdownVotes');
+        const q = query(
+            votesRef,
+            where('timestamp', '>=', Timestamp.fromDate(new Date(todayId + 'T00:00:00'))),
+            orderBy('timestamp', 'desc'),
+            limit(100)
+        );
+
+        const snapshot = await getDocs(q);
+        const voters: VoterInfo[] = [];
+
+        for (const voteDoc of snapshot.docs) {
+            const data = voteDoc.data();
+            const odId = data.odId;
+
+            // Try to get user profile for display name and email
+            let email = '';
+            let displayName = '';
+            try {
+                const userRef = doc(db, 'users', odId);
+                const userSnap = await getDoc(userRef);
+                if (userSnap.exists()) {
+                    const userData = userSnap.data();
+                    email = userData.email || '';
+                    displayName = userData.displayName || userData.name || '';
+                }
+            } catch (e) {
+                // User profile not found, continue
+            }
+
+            voters.push({
+                odId,
+                votedFor: data.votedFor,
+                timestamp: data.timestamp?.toDate?.() || new Date(),
+                email,
+                displayName
+            });
+        }
+
+        return voters;
+    } catch (error) {
+        console.error('Error fetching voters:', error);
+        return [];
     }
 };
 

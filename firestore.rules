@@ -75,7 +75,8 @@ service cloud.firestore {
 
     match /showdownVotes/{voteId} {
       allow read: if true; 
-      allow create: if request.auth != null && voteId.endsWith(request.auth.uid);
+      // Allow authenticated users to create their own vote (voteId contains their userId)
+      allow create: if request.auth != null && voteId.matches('.*_' + request.auth.uid + '$');
       allow update, delete: if false;
     }
   }
