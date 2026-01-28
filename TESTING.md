@@ -1,6 +1,6 @@
 # Saucy AI - Testing Checklist 🔍
 
-**Version**: v8.6.0  
+**Version**: v8.7.0  
 **Date**: January 28, 2026  
 **URL**: https://saucy-ai.web.app
 
@@ -28,10 +28,13 @@
 | 1 | View homepage | Sauce Showdown widget visible | ⬜ |
 | 2 | Two GIFs displayed | Challenger vs Defender shown | ⬜ |
 | 3 | Timer visible | Shows HH:MM:SS countdown | ⬜ |
-| 4 | Click on a GIF | Vote registers, animation plays | ⬜ |
+| 4 | Click on a GIF (before timer ends) | Vote registers, animation plays | ⬜ |
 | 5 | Check vote persistence | Refresh page, vote still shown | ⬜ |
 | 6 | Try voting again | Blocked (already voted indicator) | ⬜ |
-| 7 | Vote percentages | Update after voting | ⬜ |
+| 7 | **Timer hits 00:00:00** | Winner overlay shows "🏆 WINNER" | ⬜ |
+| 8 | **Vote after timer ends** | Shows "This showdown has ended!" | ⬜ |
+| 9 | **Winner GIF styling** | Color ring + trophy overlay | ⬜ |
+| 10 | **Loser GIF styling** | Dimmed to 50% opacity | ⬜ |
 
 ---
 
@@ -47,6 +50,8 @@
 | 6 | Click "Seed Test Showdown" | New test showdown created | ⬜ |
 | 7 | Use GIF Picker | Search Klipy, select new GIF | ⬜ |
 | 8 | Update Challenger/Defender | GIFs update in showdown | ⬜ |
+| 9 | **Vote Log displays** | Shows voter names, emails, choices, times | ⬜ |
+| 10 | **Refresh Vote Log** | Updates with new votes | ⬜ |
 
 ---
 
@@ -135,14 +140,36 @@
 **Date Completed**: _______________  
 **Issues Found**: 
 
-### 📝 Tomorrow's To-Do
+---
+
+## 📝 Next Steps (Tomorrow's To-Do)
+
+### Priority 1: Manual Testing
+- [ ] Complete the full testing checklist above
+- [ ] Test showdown winner display when timer expires
+- [ ] Verify Vote Log shows correct data in admin panel
+- [ ] Test voting blocked after showdown ends
+
+### Priority 2: Content & Branding
 - [ ] Decide on copyright/branding for footer and README
-- [ ] Complete manual testing checklist above
-- [ ] Fix any issues found during testing
+- [ ] Add 432 Labs branding if desired
+- [ ] Create initial showdown with real GIFs
+
+### Priority 3: Polish & Monitoring
+- [ ] Monitor Firebase Analytics for user engagement
+- [ ] Check error logs for any issues
+- [ ] Consider custom domain setup (saucy.app?)
+
+### Future Enhancements
+- [ ] Push notifications for showdown results
+- [ ] Social sharing previews (Open Graph)
+- [ ] Showdown history/archive page
+- [ ] Leaderboard for most active voters
+- [ ] Location tracking for voters (if desired)
 
 ---
 
 ## Quick Links
 - 🌐 Live: https://saucy-ai.web.app
 - 📊 Firebase Console: https://console.firebase.google.com/project/saucy-ai
-- 📁 GitHub: https://github.com/[your-repo]
+- 📁 GitHub: https://github.com/MrGilmore956/StickerMagic
