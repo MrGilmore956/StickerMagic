@@ -69,5 +69,4 @@ firebase deploy --only hosting
 
 ---
 
-**Live at**: https://saucy-ai.web.app  
-© 2026 432 Labs • Powered by Gemini AI
+**Live at**: https://saucy-ai.web.app
