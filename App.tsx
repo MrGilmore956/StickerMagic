@@ -20,10 +20,11 @@ import HomePage from './pages/HomePage';
 import CreateTab from './components/CreateTab';
 import LoginPage from './pages/LoginPage';
 
-// Admin pages (lazy loaded)
+// Lazy-loaded pages
 const AdminPortal = React.lazy(() => import('./pages/admin/AdminPortal'));
 const SauceBox = React.lazy(() => import('./pages/SauceBox'));
 const LogoPreview = React.lazy(() => import('./pages/LogoPreview'));
+const GifPage = React.lazy(() => import('./pages/GifPage'));
 
 const App: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
@@ -105,7 +106,7 @@ const App: React.FC = () => {
             element={
               !isAuthenticated ? (
                 <Navigate to="/login" replace />
-              ) : userProfile?.role === 'admin' ? (
+              ) : (userProfile?.role === 'admin' || userProfile?.role === 'owner') ? (
                 <AdminPortal />
               ) : (
                 <Navigate to="/" replace />
@@ -118,6 +119,9 @@ const App: React.FC = () => {
             path="/logo-preview"
             element={isAuthenticated ? <LogoPreview /> : <Navigate to="/login" replace />}
           />
+
+          {/* Individual GIF Page - PUBLIC (for link sharing) */}
+          <Route path="/gif/:id" element={<GifPage />} />
 
           {/* Catch-all redirect */}
           <Route path="*" element={<Navigate to="/" replace />} />

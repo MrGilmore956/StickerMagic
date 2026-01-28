@@ -1,36 +1,73 @@
-# Stickify 🎨✨
+# Saucy AI 🌶️✨
 
-AI-powered sticker creator that removes text from images and animated GIFs, or generates brand new stickers from prompts.
+**The Spotify of GIFs** - AI-powered GIF discovery and creation platform.
 
-**Live App**: [View in AI Studio](https://ai.studio/apps/drive/1aujC17MTeaV1lHRtuVC578iwJU0WE0Lo)
+**🔴 LIVE**: https://saucy-ai.web.app
 
 ## Features
 
-- **Magic Remover** - Upload an image or GIF, AI removes all text/watermarks
-- **Animated GIF Support** - Preserves animation while removing text (frame-by-frame processing)
-- **Sticker Creator** - Generate new stickers from text prompts
-- **Help Chat** - AI assistant for design tips and prompt writing
+### 🔍 GIF Discovery
+- **Smart Search** - Find the perfect GIF with AI-enhanced search
+- **Categories** - Browse curated collections by mood and theme
+- **Sauce Showdown** - Daily GIF battles with community voting
+
+### 🎨 GIF Creation
+- **Magic Remover** - Remove text/watermarks from images & GIFs
+- **AI Generator** - Create custom GIFs from text prompts
+- **Animated Support** - Frame-by-frame processing for animations
+
+### ❤️ Personal Library
+- **Sauce Box** - Save your favorite GIFs
+- **Download & Share** - Easy export options
+- **Sync Across Devices** - Cloud-saved favorites
+
+### 👑 Admin Portal
+- **Showdown Manager** - Seed, reset, and manage daily battles
+- **User Management** - Role-based access control (Owner/Admin/User)
+- **Analytics Dashboard** - Track platform engagement and downloads
+- **Content Library** - Curate and approve GIF submissions
+
+## Tech Stack
+- **Frontend**: React 18 + TypeScript + Vite
+- **Styling**: Tailwind CSS v4
+- **Backend**: Firebase (Auth, Firestore, Hosting)
+- **AI**: Google Gemini API
+- **GIF Sources**: Klipy API, GIPHY, Tenor
 
 ## Run Locally
 
-**Prerequisites:** Node.js
+```bash
+# Install dependencies
+npm install
 
-1. Install dependencies:
-   ```bash
-   npm install
-   ```
-2. **Set your API Key**:
-   - Open `.env.local`
-   - Replace `PLACEHOLDER_API_KEY` with your **actual** Gemini API key from [aistudio.google.com/app/apikey](https://aistudio.google.com/app/apikey)
-3. Run the app:
-   ```bash
-   npm run dev
-   ```
+# Set API key in .env.local
+VITE_GEMINI_API_KEY=your_key_here
 
-## Rate Limits
+# Start dev server
+npm run dev
+```
 
-- **25 uses per user per day** for GIF processing
+## Deployment
+
+```bash
+# Build for production
+npm run build
+
+# Deploy to Firebase
+firebase deploy --only hosting
+```
+
+## Version History
+
+### v8.6.0 (January 27, 2026)
+- ✅ Full production launch
+- ✅ Saucy-Specific Analytics dashboard
+- ✅ User Management with role changes
+- ✅ Showdown Admin controls (reset/end/seed)
+- ✅ Pure Black theme refinements
+- ✅ Mobile optimization phase
 
 ---
 
-© 2025 Stickify • Powered by Gemini
+**Live at**: https://saucy-ai.web.app  
+© 2026 432 Labs • Powered by Gemini AI

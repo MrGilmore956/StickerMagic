@@ -272,19 +272,136 @@ export const createShowdown = async (
 };
 
 /**
- * Seed a test showdown with Mr. Deeds vs Happy Gilmore
+ * Seed a test showdown with Fire vs Mind Blown
  */
 export const seedTestShowdown = async (): Promise<{ success: boolean; message: string }> => {
     return createShowdown(
         {
-            id: 'gif-mrdeeds',
-            title: 'Mr. Deeds - Very Sneaky Sir',
-            url: 'https://media.tenor.com/JaP_I2MUhWoAAAAd/mr-deeds-very-sneaky-sir.gif'
+            id: 'gif-fire',
+            title: 'Fire - Too Hot 🔥',
+            url: 'https://media.giphy.com/media/26u4cqiYI30juCOGY/giphy.gif'
         },
         {
-            id: 'gif-happygilmore',
-            title: 'Happy Gilmore - The Price is Wrong',
-            url: 'https://media.tenor.com/KVrNeGYp6JgAAAAC/the-price-is-wrong-happy-gilmore.gif'
+            id: 'gif-mindblown',
+            title: 'Mind Blown 🤯',
+            url: 'https://media.giphy.com/media/artj92V8o75VPL7AeQ/giphy.gif'
         }
     );
+};
+
+// ============================================================================
+// ADMIN CONTROLS
+// ============================================================================
+
+/**
+ * Reset all votes for today's showdown (Admin only)
+ */
+export const resetShowdownVotes = async (): Promise<{ success: boolean; message: string }> => {
+    try {
+        const todayId = getTodayId();
+        const showdownRef = doc(db, 'showdowns', todayId);
+        const showdownSnap = await getDoc(showdownRef);
+
+        if (!showdownSnap.exists()) {
+            return { success: false, message: 'No active showdown to reset' };
+        }
+
+        // Reset vote counts to 0
+        await updateDoc(showdownRef, {
+            'gifA.votes': 0,
+            'gifB.votes': 0
+        });
+
+        // Note: Individual vote records in showdownVotes collection are kept for audit
+        // but the counts are reset. To fully reset, you'd need to delete those too.
+
+        return { success: true, message: 'Vote counters reset to 0!' };
+    } catch (error) {
+        console.error('Error resetting votes:', error);
+        return { success: false, message: 'Failed to reset votes' };
+    }
+};
+
+/**
+ * End the current showdown early and optionally declare a winner (Admin only)
+ */
+export const endShowdownEarly = async (
+    winner?: 'A' | 'B'
+): Promise<{ success: boolean; message: string }> => {
+    try {
+        const todayId = getTodayId();
+        const showdownRef = doc(db, 'showdowns', todayId);
+        const showdownSnap = await getDoc(showdownRef);
+
+        if (!showdownSnap.exists()) {
+            return { success: false, message: 'No active showdown to end' };
+        }
+
+        const data = showdownSnap.data();
+
+        // If no winner specified, determine by votes
+        let finalWinner: 'A' | 'B' | null = winner || null;
+        if (!finalWinner) {
+            const votesA = data.gifA?.votes || 0;
+            const votesB = data.gifB?.votes || 0;
+            if (votesA > votesB) finalWinner = 'A';
+            else if (votesB > votesA) finalWinner = 'B';
+            // If tied, no winner
+        }
+
+        await updateDoc(showdownRef, {
+            status: 'completed',
+            winner: finalWinner,
+            endsAt: Timestamp.now() // End immediately
+        });
+
+        return {
+            success: true,
+            message: finalWinner
+                ? `Showdown ended! Winner: ${finalWinner === 'A' ? 'Challenger' : 'Defender'}`
+                : 'Showdown ended (tie or no winner declared)'
+        };
+    } catch (error) {
+        console.error('Error ending showdown:', error);
+        return { success: false, message: 'Failed to end showdown' };
+    }
+};
+
+/**
+ * Update the GIFs in the current showdown (Admin only)
+ */
+export const updateShowdownGifs = async (
+    gifA?: Omit<ShowdownGIF, 'votes'>,
+    gifB?: Omit<ShowdownGIF, 'votes'>
+): Promise<{ success: boolean; message: string }> => {
+    try {
+        const todayId = getTodayId();
+        const showdownRef = doc(db, 'showdowns', todayId);
+        const showdownSnap = await getDoc(showdownRef);
+
+        if (!showdownSnap.exists()) {
+            return { success: false, message: 'No active showdown to update' };
+        }
+
+        const data = showdownSnap.data();
+        const updates: Record<string, any> = {};
+
+        if (gifA) {
+            updates['gifA'] = { ...gifA, votes: data.gifA?.votes || 0 };
+        }
+        if (gifB) {
+            updates['gifB'] = { ...gifB, votes: data.gifB?.votes || 0 };
+        }
+
+        if (Object.keys(updates).length === 0) {
+            return { success: false, message: 'No GIF changes provided' };
+        }
+
+        await updateDoc(showdownRef, updates);
+
+        return { success: true, message: 'Showdown GIFs updated!' };
+    } catch (error) {
+        console.error('Error updating showdown GIFs:', error);
+        return { success: false, message: 'Failed to update GIFs' };
+    }
 };

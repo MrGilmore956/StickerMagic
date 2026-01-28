@@ -30,7 +30,9 @@ import {
     Users,
     Database,
     Loader2,
-    Kanban
+    Kanban,
+    Swords,
+    UserCog
 } from 'lucide-react';
 import { User } from 'firebase/auth';
 import { signOut, initAuthListener } from '../../services/authService';
@@ -45,6 +47,8 @@ import AIGeneration from './AIGeneration';
 import SocialCampaigns from './SocialCampaigns';
 import Analytics from './Analytics';
 import ProjectBoard from './ProjectBoard';
+import ShowdownManager from './ShowdownManager';
+import UserManagement from './UserManagement';
 
 
 export default function AdminPortal() {
@@ -110,11 +114,13 @@ export default function AdminPortal() {
         { path: '/admin', icon: LayoutDashboard, label: 'Dashboard', exact: true },
         { path: '/admin/review', icon: Clock, label: 'Review Queue', badge: stats.pendingReview },
         { path: '/admin/library', icon: Library, label: 'Content Library' },
+        { path: '/admin/showdown', icon: Swords, label: 'Showdown Manager' },
         { path: '/admin/generate', icon: Sparkles, label: 'AI Generation' },
         { path: '/admin/campaigns', icon: Megaphone, label: 'Social Campaigns' },
         { path: '/admin/board', icon: Kanban, label: 'Project Board' },
         { path: '/admin/analytics', icon: BarChart3, label: 'Analytics' },
         { path: '/admin/settings', icon: Settings, label: 'Settings' },
+        { path: '/admin/users', icon: UserCog, label: 'User Management' },
     ];
 
     return (
@@ -249,11 +255,13 @@ export default function AdminPortal() {
                         <Route path="/" element={<AdminDashboard stats={stats} />} />
                         <Route path="/review" element={<ReviewQueue onUpdate={loadStats} />} />
                         <Route path="/library" element={<ContentLibrary />} />
+                        <Route path="/showdown" element={<ShowdownManager />} />
                         <Route path="/generate" element={<AIGeneration />} />
                         <Route path="/campaigns" element={<SocialCampaigns />} />
                         <Route path="/board" element={<ProjectBoard />} />
                         <Route path="/analytics" element={<Analytics />} />
                         <Route path="/settings" element={<AdminSettings />} />
+                        <Route path="/users" element={<UserManagement />} />
                     </Routes>
                 </div>
             </main>

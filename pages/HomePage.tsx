@@ -551,7 +551,7 @@ export default function HomePage() {
         }
 
         return () => observer.disconnect();
-    }, [hasMore, loadingMore, loading, debouncedSearch, offset]);
+    }, [hasMore, loadingMore, loading, debouncedSearch, offset, selectedCategory]);
 
     // Favorites check
     useEffect(() => {
@@ -825,27 +825,17 @@ export default function HomePage() {
         }
     };
 
-    // Map trending periods to different search queries for variety
-    const getTrendingQuery = (period: TrendingPeriod): string => {
-        const queries: Record<TrendingPeriod, string[]> = {
-            today: ['trending', 'viral', 'hot now', 'popular today'],
-            week: ['funny', 'reaction', 'mood', 'relatable'],
-            month: ['celebration', 'excited', 'happy', 'dance party'],
-            allTime: ['classic', 'iconic', 'legendary', 'best ever']
-        };
-        const periodQueries = queries[period];
-        return periodQueries[Math.floor(Math.random() * periodQueries.length)];
-    };
-
     const loadGifs = async (reset = false) => {
         setLoading(true);
         try {
-            // Use Klipy API with different search terms per period
-            const query = getTrendingQuery(trendingPeriod);
-            currentQueryRef.current = query;
-            console.log(`Loading GIFs for ${trendingPeriod} with query: "${query}"`);
+            // Use the actual Klipy trending API endpoint which returns GIFs 
+            // based on real popularity/download metrics, not text search
+            console.log(`Loading trending GIFs for period: ${trendingPeriod}`);
+            currentQueryRef.current = ''; // Clear query ref since we're using trending endpoint
 
-            const klipyItems = await searchKlipy(query, { limit: 24, offset: 0 });
+            // getTrendingKlipy uses the /gifs/trending endpoint which returns
+            // actually popular GIFs based on views/downloads, not text matching
+            const klipyItems = await getTrendingKlipy({ limit: 48 });
 
             // Convert Klipy items to LibraryGIF format
             const items: LibraryGIF[] = klipyItems.map(item => ({
@@ -860,10 +850,10 @@ export default function HomePage() {
             }));
 
             setGifs(items);
-            setOffset(24);
-            setHasMore(klipyItems.length >= 24);
+            setOffset(48);
+            setHasMore(klipyItems.length >= 48);
         } catch (error) {
-            console.error('Failed to load GIFs:', error);
+            console.error('Failed to load trending GIFs:', error);
             setGifs([]);
         } finally {
             setLoading(false);
@@ -875,11 +865,13 @@ export default function HomePage() {
 
         setLoadingMore(true);
         try {
-            // Use same query but with offset for more results
-            const query = currentQueryRef.current || getTrendingQuery(trendingPeriod);
-            console.log(`Loading more GIFs with offset: ${offset}`);
+            // For trending, fetch a larger batch since the API 
+            // returns actually popular GIFs based on real metrics
+            console.log(`Loading more trending GIFs`);
 
-            const klipyItems = await searchKlipy(query, { limit: 24, offset });
+            // Klipy's trending endpoint doesn't support offset well,
+            // so we'll fetch more and dedupe with existing GIFs
+            const klipyItems = await getTrendingKlipy({ limit: 96 });
 
             if (klipyItems.length === 0) {
                 setHasMore(false);
@@ -900,14 +892,15 @@ export default function HomePage() {
 
             setGifs(prev => {
                 const combined = [...prev, ...newItems];
+                // Deduplicate by ID
                 return combined.filter((item, index, self) =>
                     index === self.findIndex((t) => t.id === item.id)
                 );
             });
-            setOffset(prev => prev + 24);
-            setHasMore(klipyItems.length >= 24);
+            // After this load, we've likely fetched all trending - disable further loading
+            setHasMore(false);
         } catch (error) {
-            console.error('Failed to load more GIFs:', error);
+            console.error('Failed to load more trending GIFs:', error);
         } finally {
             setLoadingMore(false);
         }
@@ -1057,18 +1050,113 @@ export default function HomePage() {
         <div className="min-h-screen bg-black text-white">
             {/* Header */}
             <header className="sticky top-0 z-40 bg-black/95 backdrop-blur-xl border-b border-white/5">
-                <div className="w-full px-6 py-2.5 flex items-center justify-between gap-6">
-                    {/* Logo - Far Left */}
-                    <a href="/" className="flex items-center shrink-0">
-                        <img
-                            src="/logos/saucy_bottle_flame.png"
-                            alt="Saucy"
-                            className="h-10 w-auto object-contain"
-                        />
-                    </a>
+                {/* Mobile: stacked layout, Desktop: horizontal */}
+                <div className="w-full px-4 sm:px-6 py-2">
+                    {/* Top row: Logo + Auth */}
+                    <div className="flex items-center justify-between gap-3">
+                        {/* Logo - Responsive sizing */}
+                        <a href="/" className="flex items-center shrink-0">
+                            <img
+                                src="/logos/saucy_bottle_flame.png"
+                                alt="Saucy"
+                                className="h-12 sm:h-16 md:h-20 w-auto object-contain transition-all hover:scale-110 duration-300"
+                            />
+                        </a>
 
-                    {/* Search - Center */}
-                    <div className="flex-1 max-w-xl mx-auto">
+                        {/* Search - Hidden on mobile top row, shown in own row below */}
+                        <div className="hidden sm:flex flex-1 max-w-xl mx-auto">
+                            <div className="relative w-full">
+                                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+                                <input
+                                    type="text"
+                                    placeholder="Search GIFs..."
+                                    value={searchTerm}
+                                    onChange={(e) => setSearchTerm(e.target.value)}
+                                    className="w-full pl-12 pr-4 py-2.5 bg-white/5 border border-white/10 rounded-full text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:border-red-500/50 transition-all text-sm"
+                                />
+                            </div>
+                        </div>
+
+                        {/* Auth - Far Right */}
+                        {user ? (
+                            <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+                                {/* Sauce Lab Button - Admin or Owner */}
+                                {(userProfile?.role === 'admin' || userProfile?.role === 'owner') && (
+                                    <Link
+                                        to="/admin"
+                                        className="flex items-center gap-2 px-4 py-2 bg-white/5 border border-white/10 text-white rounded-full font-semibold hover:bg-white/10 hover:border-red-500/50 transition-all text-sm group"
+                                    >
+                                        <FlaskConical className="w-4 h-4 text-red-500 group-hover:text-red-400 transition-all" />
+                                        <span className="hidden md:inline">Sauce Lab</span>
+                                    </Link>
+                                )}
+
+                                {/* Sauce Box (Favorites) */}
+                                <Link
+                                    to="/saucebox"
+                                    className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-white/5 border border-white/10 text-white rounded-full font-semibold hover:bg-white/10 hover:border-red-500/50 transition-all text-sm group"
+                                >
+                                    <Heart className="w-4 h-4 text-red-500 group-hover:fill-red-500 transition-all" />
+                                    <span className="hidden sm:inline">Sauce Box</span>
+                                </Link>
+
+                                <div className="text-right hidden md:block">
+                                    <p className="text-sm font-medium">{user.displayName}</p>
+                                    <p className={`text-xs font-semibold ${userProfile?.role === 'owner' ? 'text-amber-400' :
+                                        userProfile?.role === 'admin' ? 'text-red-400' :
+                                            'text-slate-400'
+                                        }`}>
+                                        {userProfile?.role === 'owner' ? '👑 Owner' :
+                                            userProfile?.role === 'admin' ? '🔥 Admin' :
+                                                '✨ Free tier'}
+                                    </p>
+                                </div>
+
+                                {/* User Avatar with Dropdown */}
+                                <div className="relative group">
+                                    <button
+                                        className="w-9 h-9 min-w-[44px] min-h-[44px] rounded-full bg-white/10 flex items-center justify-center hover:bg-white/20 transition-colors overflow-hidden ring-2 ring-transparent hover:ring-red-500/50"
+                                    >
+                                        {user.photoURL ? (
+                                            <img src={user.photoURL} alt="" className="w-full h-full object-cover" />
+                                        ) : (
+                                            <User className="w-4 h-4" />
+                                        )}
+                                    </button>
+
+                                    {/* Dropdown Menu */}
+                                    <div className="absolute right-0 top-full mt-2 py-2 px-1 bg-slate-900 border border-white/10 rounded-xl shadow-2xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 min-w-[180px] z-50">
+                                        {/* Mobile: Show name in dropdown */}
+                                        <div className="md:hidden px-3 py-2 border-b border-white/10 mb-1">
+                                            <p className="text-sm font-medium text-white">{user.displayName}</p>
+                                            <p className={`text-xs ${userProfile?.role === 'owner' ? 'text-amber-400' : userProfile?.role === 'admin' ? 'text-red-400' : 'text-slate-400'}`}>
+                                                {userProfile?.role === 'owner' ? '👑 Owner' : userProfile?.role === 'admin' ? '🔥 Admin' : '✨ Free tier'}
+                                            </p>
+                                        </div>
+
+                                        <button
+                                            onClick={() => signOut()}
+                                            className="w-full flex items-center gap-3 px-3 py-2.5 text-left text-sm text-red-400 hover:bg-red-500/10 rounded-lg transition-colors"
+                                        >
+                                            <LogIn className="w-4 h-4 rotate-180" />
+                                            Sign Out
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        ) : (
+                            <button
+                                onClick={() => signInWithGoogle()}
+                                className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-white text-black rounded-full font-semibold hover:bg-slate-100 transition-colors text-sm shrink-0 min-h-[44px]"
+                            >
+                                <LogIn className="w-4 h-4" />
+                                <span className="hidden sm:inline">Sign In</span>
+                            </button>
+                        )}
+                    </div>
+
+                    {/* Mobile Search Row - Full width, own row on small screens */}
+                    <div className="sm:hidden mt-2">
                         <div className="relative">
                             <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
                             <input
@@ -1076,78 +1164,32 @@ export default function HomePage() {
                                 placeholder="Search GIFs..."
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
-                                className="w-full pl-12 pr-4 py-2.5 bg-white/5 border border-white/10 rounded-full text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:border-red-500/50 transition-all text-sm"
+                                className="w-full pl-12 pr-4 py-3 bg-white/5 border border-white/10 rounded-full text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:border-red-500/50 transition-all text-base"
                             />
                         </div>
                     </div>
-
-                    {/* Auth - Far Right */}
-                    {user ? (
-                        <div className="flex items-center gap-3 shrink-0">
-                            {/* Sauce Lab Button - Admin Only */}
-                            {userProfile?.role === 'admin' && (
-                                <Link
-                                    to="/admin"
-                                    className="flex items-center gap-2 px-4 py-2 bg-white/5 border border-white/10 text-white rounded-full font-semibold hover:bg-white/10 hover:border-red-500/50 transition-all text-sm group"
-                                >
-                                    <FlaskConical className="w-4 h-4 text-red-500 group-hover:text-red-400 transition-all" />
-                                    <span className="hidden md:inline">Sauce Lab</span>
-                                </Link>
-                            )}
-
-                            {/* Sauce Box (Favorites) */}
-                            <Link
-                                to="/saucebox"
-                                className="flex items-center gap-2 px-4 py-2 bg-white/5 border border-white/10 text-white rounded-full font-semibold hover:bg-white/10 hover:border-red-500/50 transition-all text-sm group"
-                            >
-                                <Heart className="w-4 h-4 text-red-500 group-hover:fill-red-500 transition-all" />
-                                <span className="hidden md:inline">Sauce Box</span>
-                            </Link>
-
-                            <div className="text-right hidden sm:block">
-                                <p className="text-sm font-medium">{user.displayName}</p>
-                                <p className="text-xs text-slate-400">Free tier</p>
-                            </div>
-                            <button
-                                onClick={() => signOut()}
-                                className="w-9 h-9 rounded-full bg-white/10 flex items-center justify-center hover:bg-white/20 transition-colors overflow-hidden"
-                            >
-                                {user.photoURL ? (
-                                    <img src={user.photoURL} alt="" className="w-full h-full object-cover" />
-                                ) : (
-                                    <User className="w-4 h-4" />
-                                )}
-                            </button>
-                        </div>
-                    ) : (
-                        <button
-                            onClick={() => signInWithGoogle()}
-                            className="flex items-center gap-2 px-4 py-2 bg-white text-black rounded-full font-semibold hover:bg-slate-100 transition-colors text-sm shrink-0"
-                        >
-                            <LogIn className="w-4 h-4" />
-                            <span className="hidden sm:inline">Sign In</span>
-                        </button>
-                    )}
                 </div>
             </header>
 
-            {/* Categories Section - Minimal Pills, Full Width */}
-            <section className="relative py-4 bg-black">
-                <div className="w-full px-6">
-                    <div className="flex items-center gap-2 mb-4 text-slate-400">
+            {/* Categories Section - Horizontal scroll on mobile, wrap on desktop */}
+            <section className="relative py-3 sm:py-4 bg-black">
+                <div className="w-full px-4 sm:px-6">
+                    {/* Header - hidden on mobile */}
+                    <div className="hidden sm:flex items-center gap-2 mb-3 text-slate-400">
                         <span className="text-lg">🎯</span>
                         <h2 className="text-sm font-bold uppercase tracking-widest text-white/60">Browse Categories</h2>
                     </div>
 
+                    {/* Categories: horizontal scroll on mobile, wrap on larger screens */}
                     <div
                         ref={categoriesRef}
-                        className="flex flex-wrap items-center justify-between gap-2 md:gap-3"
+                        className="flex items-center gap-2 overflow-x-auto scrollbar-hide pb-2 sm:flex-wrap sm:overflow-visible sm:pb-0 sm:gap-3"
                     >
                         {CATEGORIES.map((category) => (
                             <button
                                 key={category.id}
                                 onClick={() => handleCategoryClick(category)}
-                                className={`flex items-center gap-2 px-4 py-2 rounded-full font-medium text-sm whitespace-nowrap transition-all duration-200 transform hover:scale-105 active:scale-95 ${selectedCategory?.id === category.id
+                                className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 rounded-full font-medium text-xs sm:text-sm whitespace-nowrap transition-all duration-200 transform hover:scale-105 active:scale-95 shrink-0 sm:shrink min-h-[44px] ${selectedCategory?.id === category.id
                                     ? 'bg-white text-black'
                                     : 'bg-white/5 text-slate-400 border border-white/10 hover:border-white/20 hover:text-white hover:bg-white/10'
                                     }`}
@@ -1161,9 +1203,9 @@ export default function HomePage() {
             </section>
 
             {/* Time Period & Filters - Below Categories, Above GIF of the Day */}
-            <section className="bg-black py-4 border-b border-white/5">
-                <div className="w-full px-6">
-                    <div className="flex items-center justify-center gap-2 overflow-x-auto pb-2 scrollbar-hide">
+            <section className="bg-black py-2 sm:py-4 border-b border-white/5">
+                <div className="w-full px-4 sm:px-6">
+                    <div className="flex items-center justify-start sm:justify-center gap-2 overflow-x-auto pb-2 scrollbar-hide">
                         {[
                             { id: 'today', label: 'Today', icon: Flame },
                             { id: 'week', label: 'This Week', icon: Calendar },
@@ -1178,23 +1220,24 @@ export default function HomePage() {
                                     setAiSuggestedSubs([]);
                                     setTrendingPeriod(id as TrendingPeriod);
                                 }}
-                                className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold whitespace-nowrap transition-all duration-200 ${trendingPeriod === id && !selectedCategory
+                                className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-5 py-2 sm:py-2.5 rounded-lg sm:rounded-xl font-medium sm:font-semibold text-xs sm:text-sm whitespace-nowrap transition-all duration-200 shrink-0 min-h-[44px] ${trendingPeriod === id && !selectedCategory
                                     ? 'bg-white/10 text-white border border-white/30 shadow-[0_0_15px_rgba(255,255,255,0.1)]'
                                     : 'bg-transparent text-slate-400 border border-white/10 hover:border-red-500/50 hover:text-white hover:shadow-[0_0_15px_rgba(239,68,68,0.15)]'
                                     }`}
                             >
-                                <Icon className="w-4 h-4" />
-                                {label}
+                                <Icon className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                                <span className="hidden xs:inline sm:inline">{label}</span>
+                                <span className="xs:hidden">{id === 'today' ? '🔥' : id === 'week' ? '📅' : id === 'month' ? '📈' : '👑'}</span>
                             </button>
                         ))}
 
-                        <div className="w-px h-8 bg-white/10 mx-2" />
+                        <div className="w-px h-6 sm:h-8 bg-white/10 mx-1 sm:mx-2 shrink-0" />
 
                         {/* Rating Filter */}
                         <select
                             value={ratingFilter}
                             onChange={(e) => setRatingFilter(e.target.value as ContentRating)}
-                            className="px-4 py-2.5 bg-transparent border border-white/10 rounded-xl text-white font-medium focus:outline-none focus:ring-2 focus:ring-white/20 hover:border-red-500/50 transition-all duration-200"
+                            className="px-3 sm:px-4 py-2 sm:py-2.5 bg-transparent border border-white/10 rounded-lg sm:rounded-xl text-white font-medium text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-white/20 hover:border-red-500/50 transition-all duration-200 min-h-[44px] shrink-0"
                         >
                             <option value="all">All Ratings</option>
                             <option value="pg">🟢 PG</option>
@@ -1315,12 +1358,14 @@ export default function HomePage() {
                 </section>
             )}
 
-            {/* Sauce Showdown - Daily Voting Battle */}
-            <section className="relative bg-black py-8">
-                <div className="w-full px-6">
-                    <SauceShowdown user={user} />
-                </div>
-            </section>
+            {/* Sauce Showdown - Daily Voting Battle (hidden during search) */}
+            {!debouncedSearch && (
+                <section className="relative bg-black py-8">
+                    <div className="w-full px-6">
+                        <SauceShowdown user={userProfile || user} />
+                    </div>
+                </section>
+            )}
 
 
             {/* GIF Grid */}
@@ -1438,7 +1483,7 @@ export default function HomePage() {
                     onClick={() => setSelectedGif(null)}
                 >
                     <div
-                        className="bg-[#1a1a1f] rounded-3xl max-w-2xl w-full overflow-hidden"
+                        className="bg-black border border-white/10 rounded-3xl max-w-2xl w-full overflow-hidden"
                         onClick={(e) => e.stopPropagation()}
                     >
                         {/* GIF */}
@@ -1523,18 +1568,12 @@ export default function HomePage() {
                                     )}
                                 </button>
                                 <button
-                                    onClick={(e) => handleCopy(selectedGif, e)}
-                                    className="flex items-center justify-center p-3.5 bg-white/5 border border-white/10 rounded-2xl hover:bg-white/10 hover:border-red-500/50 transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
-                                    title="Copy Link"
-                                >
-                                    <Copy className="w-5 h-5" />
-                                </button>
-                                <button
                                     onClick={(e) => handleShare(selectedGif, e)}
-                                    className="flex items-center justify-center p-3.5 bg-white/5 border border-white/10 rounded-2xl hover:bg-white/10 hover:border-red-500/50 transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
-                                    title="Share"
+                                    className="flex items-center justify-center gap-2 px-4 py-3.5 bg-white/5 border border-white/10 rounded-2xl hover:bg-white/10 hover:border-red-500/50 transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
+                                    title="Share or Copy Link"
                                 >
                                     <Share2 className="w-5 h-5" />
+                                    <span className="text-sm font-medium">Share</span>
                                 </button>
                             </div>
                         </div>

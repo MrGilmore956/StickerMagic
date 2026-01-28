@@ -178,6 +178,101 @@ export default function Analytics() {
                 />
             </div>
 
+            {/* Saucy Platform Stats - Highlight our own download metrics */}
+            <div className="bg-gradient-to-br from-red-500/10 to-orange-500/10 rounded-2xl border border-red-500/20 p-6">
+                <div className="flex items-center justify-between mb-4">
+                    <h3 className="font-semibold flex items-center gap-2">
+                        <Globe className="w-5 h-5 text-red-400" />
+                        Saucy Platform Downloads
+                    </h3>
+                    <span className="text-xs text-slate-400 bg-white/10 px-2 py-1 rounded-full">
+                        Direct Website Activity
+                    </span>
+                </div>
+
+                {/* Source Breakdown */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-4">
+                    {/* Saucy Website - Primary */}
+                    <div className="bg-red-500/20 border border-red-500/30 rounded-xl p-4 text-center">
+                        <p className="text-3xl font-bold text-red-400">
+                            {(() => {
+                                const totalWebsite = dailyData.reduce((sum, d) => sum + (d.downloads_website || 0), 0);
+                                return formatNumber(totalWebsite);
+                            })()}
+                        </p>
+                        <p className="text-sm text-red-300/70">Saucy Website</p>
+                        <p className="text-[10px] text-slate-500 mt-1">Direct Downloads</p>
+                    </div>
+
+                    {/* Klipy */}
+                    <div className="bg-white/5 border border-white/10 rounded-xl p-4 text-center">
+                        <p className="text-2xl font-bold text-slate-300">
+                            {(() => {
+                                const totalKlipy = dailyData.reduce((sum, d) => sum + (d.downloads_klipy || 0), 0);
+                                return formatNumber(totalKlipy);
+                            })()}
+                        </p>
+                        <p className="text-sm text-slate-400">Klipy</p>
+                        <p className="text-[10px] text-slate-500 mt-1">External</p>
+                    </div>
+
+                    {/* GIPHY */}
+                    <div className="bg-white/5 border border-white/10 rounded-xl p-4 text-center">
+                        <p className="text-2xl font-bold text-slate-300">
+                            {(() => {
+                                const totalGiphy = dailyData.reduce((sum, d) => sum + (d.downloads_giphy || 0), 0);
+                                return formatNumber(totalGiphy);
+                            })()}
+                        </p>
+                        <p className="text-sm text-slate-400">GIPHY</p>
+                        <p className="text-[10px] text-slate-500 mt-1">External</p>
+                    </div>
+
+                    {/* Tenor */}
+                    <div className="bg-white/5 border border-white/10 rounded-xl p-4 text-center">
+                        <p className="text-2xl font-bold text-slate-300">
+                            {(() => {
+                                const totalTenor = dailyData.reduce((sum, d) => sum + (d.downloads_tenor || 0), 0);
+                                return formatNumber(totalTenor);
+                            })()}
+                        </p>
+                        <p className="text-sm text-slate-400">Tenor</p>
+                        <p className="text-[10px] text-slate-500 mt-1">External</p>
+                    </div>
+                </div>
+
+                {/* Saucy vs External Percentage Bar */}
+                {(() => {
+                    const saucyDownloads = dailyData.reduce((sum, d) => sum + (d.downloads_website || 0), 0);
+                    const externalDownloads = dailyData.reduce((sum, d) =>
+                        sum + (d.downloads_klipy || 0) + (d.downloads_giphy || 0) + (d.downloads_tenor || 0), 0);
+                    const total = saucyDownloads + externalDownloads;
+                    const saucyPercent = total > 0 ? Math.round((saucyDownloads / total) * 100) : 0;
+
+                    return (
+                        <div>
+                            <div className="flex justify-between text-xs mb-2">
+                                <span className="text-red-400 font-medium">Saucy: {saucyPercent}%</span>
+                                <span className="text-slate-400">External: {100 - saucyPercent}%</span>
+                            </div>
+                            <div className="h-3 bg-white/10 rounded-full overflow-hidden flex">
+                                <div
+                                    className="h-full bg-gradient-to-r from-red-500 to-orange-500 transition-all"
+                                    style={{ width: `${saucyPercent}%` }}
+                                />
+                                <div
+                                    className="h-full bg-slate-600"
+                                    style={{ width: `${100 - saucyPercent}%` }}
+                                />
+                            </div>
+                            <p className="text-[10px] text-slate-500 mt-2 text-center">
+                                {total > 0 ? `${formatNumber(total)} total downloads this week` : 'No download data yet'}
+                            </p>
+                        </div>
+                    );
+                })()}
+            </div>
+
             {/* Today's Stats */}
             {todayStats && (
                 <div className="bg-white/5 rounded-2xl border border-white/10 p-6">

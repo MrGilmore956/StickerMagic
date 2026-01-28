@@ -1,6 +1,4 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
 
 /* Stickify Dark Theme Styles */
 :root {
@@ -69,4 +67,31 @@ body {
 
 ::-webkit-scrollbar-thumb:hover {
     background: #475569;
+}
+
+/* Hide scrollbar for touch devices - cleaner mobile UI */
+.scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+    display: none;
+}
+
+/* Smooth horizontal scroll for touch */
+.scroll-smooth-touch {
+    -webkit-overflow-scrolling: touch;
+    scroll-behavior: smooth;
+}
+
+/* Extra small breakpoint for very small screens */
+@media (min-width: 475px) {
+    .xs\:inline {
+        display: inline;
+    }
+
+    .xs\:hidden {
+        display: none;
+    }
 }
