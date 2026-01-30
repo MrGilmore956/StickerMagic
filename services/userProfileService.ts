@@ -110,11 +110,11 @@ export const createUserProfile = async (
  */
 export const getUserProfile = async (uid: string): Promise<UserProfile | null> => {
     // Demo/Test bypass for admin
-    if (uid === 'admin-test-uid') {
+    if (uid === 'admin-test-uid' || uid === 'demo-admin-uid') {
         return {
-            uid: 'admin-test-uid',
+            uid: uid,
             email: 'admin@saucy.com',
-            displayName: 'Admin (Test)',
+            displayName: 'Brian Taylor (Demo)',
             photoURL: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Admin',
             role: 'admin',
             referralCode: 'SAUCY-ADMIN',
@@ -185,11 +185,11 @@ export const ensureUserProfile = async (
     photoURL: string
 ): Promise<UserProfile> => {
     // Demo/Test bypass for admin
-    if (uid === 'admin-test-uid' || email === 'admin@saucy.com') {
+    if (uid === 'admin-test-uid' || uid === 'demo-admin-uid' || email === 'admin@saucy.com') {
         return {
-            uid: 'admin-test-uid',
+            uid: uid || 'demo-admin-uid',
             email: 'admin@saucy.com',
-            displayName: 'Admin (Test)',
+            displayName: displayName || 'Brian Taylor (Demo)',
             photoURL: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Admin',
             role: 'admin',
             referralCode: 'SAUCY-ADMIN',

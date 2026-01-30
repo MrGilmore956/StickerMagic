@@ -9,7 +9,7 @@
  * - Create new showdown
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
     Flame,
     RotateCcw,
@@ -54,6 +54,32 @@ const ShowdownManager: React.FC = () => {
     const [selectedGifB, setSelectedGifB] = useState<Omit<ShowdownGIF, 'votes'> | null>(null);
     const [searchingA, setSearchingA] = useState(false);
     const [searchingB, setSearchingB] = useState(false);
+    // Autocomplete state
+    const [showSuggestionsA, setShowSuggestionsA] = useState(false);
+    const [showSuggestionsB, setShowSuggestionsB] = useState(false);
+    const debounceTimerA = useRef<NodeJS.Timeout | null>(null);
+    const debounceTimerB = useRef<NodeJS.Timeout | null>(null);
+
+    // Popular search terms for autocomplete
+    const POPULAR_SEARCHES = [
+        'cat', 'car', 'cake', 'coding', 'coffee', 'cool', 'celebrate', 'clapping',
+        'dog', 'dancing', 'deal with it', 'donuts', 'dab',
+        'epic', 'excited', 'explosion', 'eye roll',
+        'funny', 'fail', 'fire', 'facepalm', 'friday',
+        'good morning', 'goodbye', 'game',
+        'happy', 'hello', 'hug', 'high five', 'heart',
+        'laugh', 'love', 'lol', 'loading',
+        'meme', 'money', 'music', 'monday', 'mic drop',
+        'no', 'nice', 'nope', 'nba',
+        'okay', 'omg', 'oops',
+        'party', 'pizza', 'peace', 'popcorn',
+        'reaction', 'rainbow', 'running',
+        'sad', 'surprised', 'smile', 'shocked', 'sleep',
+        'thanks', 'thumbs up', 'thinking', 'tired', 'trump',
+        'victory', 'voting',
+        'wow', 'waiting', 'wink', 'winner',
+        'yes', 'yay', 'yawn'
+    ];
 
     // Vote log state
     const [voters, setVoters] = useState<VoterInfo[]>([]);
@@ -101,20 +127,80 @@ const ShowdownManager: React.FC = () => {
         setTimeout(() => setMessage(null), 4000);
     };
 
-    const handleSearchA = async () => {
-        if (!searchTermA.trim()) return;
+    const handleSearchA = async (term?: string) => {
+        const query = term ?? searchTermA;
+        if (!query.trim()) return;
         setSearchingA(true);
-        const results = await searchKlipy(searchTermA, { limit: 8 });
+        setShowSuggestionsA(false);
+        const results = await searchKlipy(query, { limit: 24 });
         setSearchResultsA(results);
         setSearchingA(false);
     };
 
-    const handleSearchB = async () => {
-        if (!searchTermB.trim()) return;
+    const handleSearchB = async (term?: string) => {
+        const query = term ?? searchTermB;
+        if (!query.trim()) return;
         setSearchingB(true);
-        const results = await searchKlipy(searchTermB, { limit: 8 });
+        setShowSuggestionsB(false);
+        const results = await searchKlipy(query, { limit: 24 });
         setSearchResultsB(results);
         setSearchingB(false);
+    };
+
+    // Debounced search as user types
+    const handleInputChangeA = (value: string) => {
+        setSearchTermA(value);
+        setShowSuggestionsA(value.length >= 2);
+
+        // Cancel previous timer
+        if (debounceTimerA.current) clearTimeout(debounceTimerA.current);
+
+        // Auto-search after 400ms of no typing
+        if (value.trim().length >= 2) {
+            debounceTimerA.current = setTimeout(() => {
+                handleSearchA(value);
+            }, 400);
+        }
+    };
+
+    const handleInputChangeB = (value: string) => {
+        setSearchTermB(value);
+        setShowSuggestionsB(value.length >= 2);
+
+        // Cancel previous timer
+        if (debounceTimerB.current) clearTimeout(debounceTimerB.current);
+
+        // Auto-search after 400ms of no typing
+        if (value.trim().length >= 2) {
+            debounceTimerB.current = setTimeout(() => {
+                handleSearchB(value);
+            }, 400);
+        }
+    };
+
+    // Get filtered suggestions based on current input
+    const getSuggestionsA = () => {
+        if (searchTermA.length < 2) return [];
+        const lower = searchTermA.toLowerCase();
+        return POPULAR_SEARCHES.filter(s => s.startsWith(lower) && s !== lower).slice(0, 6);
+    };
+
+    const getSuggestionsB = () => {
+        if (searchTermB.length < 2) return [];
+        const lower = searchTermB.toLowerCase();
+        return POPULAR_SEARCHES.filter(s => s.startsWith(lower) && s !== lower).slice(0, 6);
+    };
+
+    const selectSuggestionA = (suggestion: string) => {
+        setSearchTermA(suggestion);
+        setShowSuggestionsA(false);
+        handleSearchA(suggestion);
+    };
+
+    const selectSuggestionB = (suggestion: string) => {
+        setSearchTermB(suggestion);
+        setShowSuggestionsB(false);
+        handleSearchB(suggestion);
     };
 
     const handleResetVotes = async () => {
@@ -421,22 +507,41 @@ const ShowdownManager: React.FC = () => {
                             🔥 Challenger
                         </label>
 
-                        <div className="flex gap-2">
-                            <input
-                                type="text"
-                                placeholder="Search for GIF..."
-                                value={searchTermA}
-                                onChange={(e) => setSearchTermA(e.target.value)}
-                                onKeyDown={(e) => e.key === 'Enter' && handleSearchA()}
-                                className="flex-1 px-4 py-2 rounded-lg bg-white/5 border border-white/10 text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-red-500/50"
-                            />
-                            <button
-                                onClick={handleSearchA}
-                                disabled={searchingA}
-                                className="px-4 py-2 rounded-lg bg-red-500 text-white font-semibold hover:bg-red-600 disabled:opacity-50"
-                            >
-                                {searchingA ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Search'}
-                            </button>
+                        <div className="relative">
+                            <div className="flex gap-2">
+                                <input
+                                    type="text"
+                                    placeholder="Search for GIF... (auto-searches as you type)"
+                                    value={searchTermA}
+                                    onChange={(e) => handleInputChangeA(e.target.value)}
+                                    onKeyDown={(e) => e.key === 'Enter' && handleSearchA()}
+                                    onFocus={() => searchTermA.length >= 2 && setShowSuggestionsA(true)}
+                                    onBlur={() => setTimeout(() => setShowSuggestionsA(false), 150)}
+                                    className="flex-1 px-4 py-2 rounded-lg bg-white/5 border border-white/10 text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-red-500/50"
+                                />
+                                <button
+                                    onClick={() => handleSearchA()}
+                                    disabled={searchingA}
+                                    className="px-4 py-2 rounded-lg bg-red-500 text-white font-semibold hover:bg-red-600 disabled:opacity-50"
+                                >
+                                    {searchingA ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Search'}
+                                </button>
+                            </div>
+                            {/* Autocomplete Suggestions */}
+                            {showSuggestionsA && getSuggestionsA().length > 0 && (
+                                <div className="absolute z-20 top-full left-0 right-12 mt-1 bg-slate-800 border border-white/20 rounded-lg shadow-xl overflow-hidden">
+                                    {getSuggestionsA().map((suggestion) => (
+                                        <button
+                                            key={suggestion}
+                                            onMouseDown={() => selectSuggestionA(suggestion)}
+                                            className="w-full px-4 py-2 text-left text-white hover:bg-red-500/30 transition-colors flex items-center gap-2"
+                                        >
+                                            <span className="text-slate-400">🔍</span>
+                                            <span className="capitalize">{suggestion}</span>
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
                         </div>
 
                         {/* Selected GIF */}
@@ -449,9 +554,9 @@ const ShowdownManager: React.FC = () => {
                             </div>
                         )}
 
-                        {/* Search Results */}
+                        {/* Search Results - Larger Grid */}
                         {searchResultsA.length > 0 && (
-                            <div className="grid grid-cols-4 gap-2 max-h-48 overflow-y-auto">
+                            <div className="grid grid-cols-4 sm:grid-cols-6 gap-2 max-h-96 overflow-y-auto">
                                 {searchResultsA.map((item) => (
                                     <button
                                         key={item.id}
@@ -472,22 +577,41 @@ const ShowdownManager: React.FC = () => {
                             🛡️ Defender
                         </label>
 
-                        <div className="flex gap-2">
-                            <input
-                                type="text"
-                                placeholder="Search for GIF..."
-                                value={searchTermB}
-                                onChange={(e) => setSearchTermB(e.target.value)}
-                                onKeyDown={(e) => e.key === 'Enter' && handleSearchB()}
-                                className="flex-1 px-4 py-2 rounded-lg bg-white/5 border border-white/10 text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
-                            />
-                            <button
-                                onClick={handleSearchB}
-                                disabled={searchingB}
-                                className="px-4 py-2 rounded-lg bg-blue-500 text-white font-semibold hover:bg-blue-600 disabled:opacity-50"
-                            >
-                                {searchingB ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Search'}
-                            </button>
+                        <div className="relative">
+                            <div className="flex gap-2">
+                                <input
+                                    type="text"
+                                    placeholder="Search for GIF... (auto-searches as you type)"
+                                    value={searchTermB}
+                                    onChange={(e) => handleInputChangeB(e.target.value)}
+                                    onKeyDown={(e) => e.key === 'Enter' && handleSearchB()}
+                                    onFocus={() => searchTermB.length >= 2 && setShowSuggestionsB(true)}
+                                    onBlur={() => setTimeout(() => setShowSuggestionsB(false), 150)}
+                                    className="flex-1 px-4 py-2 rounded-lg bg-white/5 border border-white/10 text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+                                />
+                                <button
+                                    onClick={() => handleSearchB()}
+                                    disabled={searchingB}
+                                    className="px-4 py-2 rounded-lg bg-blue-500 text-white font-semibold hover:bg-blue-600 disabled:opacity-50"
+                                >
+                                    {searchingB ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Search'}
+                                </button>
+                            </div>
+                            {/* Autocomplete Suggestions */}
+                            {showSuggestionsB && getSuggestionsB().length > 0 && (
+                                <div className="absolute z-20 top-full left-0 right-12 mt-1 bg-slate-800 border border-white/20 rounded-lg shadow-xl overflow-hidden">
+                                    {getSuggestionsB().map((suggestion) => (
+                                        <button
+                                            key={suggestion}
+                                            onMouseDown={() => selectSuggestionB(suggestion)}
+                                            className="w-full px-4 py-2 text-left text-white hover:bg-blue-500/30 transition-colors flex items-center gap-2"
+                                        >
+                                            <span className="text-slate-400">🔍</span>
+                                            <span className="capitalize">{suggestion}</span>
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
                         </div>
 
                         {/* Selected GIF */}
@@ -500,9 +624,9 @@ const ShowdownManager: React.FC = () => {
                             </div>
                         )}
 
-                        {/* Search Results */}
+                        {/* Search Results - Larger Grid */}
                         {searchResultsB.length > 0 && (
-                            <div className="grid grid-cols-4 gap-2 max-h-48 overflow-y-auto">
+                            <div className="grid grid-cols-4 sm:grid-cols-6 gap-2 max-h-96 overflow-y-auto">
                                 {searchResultsB.map((item) => (
                                     <button
                                         key={item.id}
@@ -542,7 +666,7 @@ const ShowdownManager: React.FC = () => {
                     <h2 className="text-xl font-bold text-white">Home Page Management</h2>
                 </div>
 
-                <div className="max-w-xl">
+                <div className="max-w-2xl">
                     <div className="space-y-4">
                         <div>
                             <label className="block text-sm font-medium text-slate-400 mb-2">
@@ -551,7 +675,7 @@ const ShowdownManager: React.FC = () => {
                             <div className="flex gap-3">
                                 <input
                                     type="text"
-                                    placeholder="e.g. 'coding', 'funny cat', 'celebration'"
+                                    placeholder="e.g. 'Trump vs Kamala', 'epic sports moments', 'funny memes'"
                                     value={landingQuery}
                                     onChange={(e) => setLandingQuery(e.target.value)}
                                     className="flex-1 px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
@@ -564,8 +688,44 @@ const ShowdownManager: React.FC = () => {
                                     {savingSettings ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Save'}
                                 </button>
                             </div>
-                            <p className="mt-2 text-xs text-slate-500">
-                                This term determines what GIFs appear in "Saucy's Pick" on the home page. Leave blank to return to default day-of-week logic.
+
+                            {/* Smart Query Examples */}
+                            <div className="mt-4 p-4 rounded-xl bg-white/5 border border-white/10">
+                                <p className="text-xs font-bold text-slate-300 mb-3">✨ Smart Search Modes:</p>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                                    <div className="flex items-start gap-2">
+                                        <span className="px-2 py-0.5 rounded-md bg-purple-500/20 text-purple-400 font-bold">VS</span>
+                                        <div>
+                                            <p className="text-white font-medium">Trump vs Kamala</p>
+                                            <p className="text-slate-500">Interleaves GIFs from both topics</p>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-start gap-2">
+                                        <span className="px-2 py-0.5 rounded-md bg-green-500/20 text-green-400 font-bold">AI</span>
+                                        <div>
+                                            <p className="text-white font-medium">epic sports fails</p>
+                                            <p className="text-slate-500">AI generates optimal search terms</p>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-start gap-2">
+                                        <span className="px-2 py-0.5 rounded-md bg-blue-500/20 text-blue-400 font-bold">SIMPLE</span>
+                                        <div>
+                                            <p className="text-white font-medium">coding</p>
+                                            <p className="text-slate-500">Direct search with exact term</p>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-start gap-2">
+                                        <span className="px-2 py-0.5 rounded-md bg-amber-500/20 text-amber-400 font-bold">MIX</span>
+                                        <div>
+                                            <p className="text-white font-medium">cats and dogs</p>
+                                            <p className="text-slate-500">Mixes GIFs from both subjects</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <p className="mt-3 text-xs text-slate-500">
+                                Use "X vs Y" format to mix GIFs from two topics. For complex prompts, the AI will automatically generate optimal search terms.
                             </p>
                         </div>
                     </div>

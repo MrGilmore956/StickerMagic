@@ -50,8 +50,8 @@ export default function LoginPage() {
                 if (result.error) {
                     setError(result.error);
                 } else {
-                    console.log("Sign-in process success: Email", email);
-                    // Redirect based on role using navigate for SPA smoothness
+                    console.log("Sign-in process success: Email", email, result.isDemo ? "(Demo Mode)" : "");
+                    // Always redirect to admin for admin@saucy.com (including demo mode)
                     if (email === 'admin@saucy.com') {
                         navigate('/admin');
                     } else {

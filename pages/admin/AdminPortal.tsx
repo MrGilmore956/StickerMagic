@@ -32,7 +32,8 @@ import {
     Loader2,
     Kanban,
     Swords,
-    UserCog
+    UserCog,
+    Wand2
 } from 'lucide-react';
 import { User } from 'firebase/auth';
 import { signOut, initAuthListener } from '../../services/authService';
@@ -49,6 +50,7 @@ import Analytics from './Analytics';
 import ProjectBoard from './ProjectBoard';
 import ShowdownManager from './ShowdownManager';
 import UserManagement from './UserManagement';
+import GifCreator from './GifCreator';
 
 
 export default function AdminPortal() {
@@ -115,6 +117,7 @@ export default function AdminPortal() {
         { path: '/admin/review', icon: Clock, label: 'Review Queue', badge: stats.pendingReview },
         { path: '/admin/library', icon: Library, label: 'Content Library' },
         { path: '/admin/showdown', icon: Swords, label: 'Showdown Manager' },
+        { path: '/admin/creator', icon: Wand2, label: 'GIF Creator' },
         { path: '/admin/generate', icon: Sparkles, label: 'AI Generation' },
         { path: '/admin/campaigns', icon: Megaphone, label: 'Social Campaigns' },
         { path: '/admin/board', icon: Kanban, label: 'Project Board' },
@@ -256,6 +259,7 @@ export default function AdminPortal() {
                         <Route path="/review" element={<ReviewQueue onUpdate={loadStats} />} />
                         <Route path="/library" element={<ContentLibrary />} />
                         <Route path="/showdown" element={<ShowdownManager />} />
+                        <Route path="/creator" element={<GifCreator />} />
                         <Route path="/generate" element={<AIGeneration />} />
                         <Route path="/campaigns" element={<SocialCampaigns />} />
                         <Route path="/board" element={<ProjectBoard />} />

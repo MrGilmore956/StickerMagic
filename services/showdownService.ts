@@ -120,10 +120,13 @@ export const subscribeToShowdown = (
 
 /**
  * Cast a vote in the current showdown
+ * Now accepts email and displayName to store directly in vote record
  */
 export const castVote = async (
     userId: string,
-    choice: 'A' | 'B'
+    choice: 'A' | 'B',
+    userEmail?: string,
+    userDisplayName?: string
 ): Promise<{ success: boolean; message: string }> => {
     try {
         const todayId = getTodayId();
@@ -158,11 +161,14 @@ export const castVote = async (
                 throw new Error('Showdown has ended');
             }
 
-            // Record user's vote
+            // Record user's vote with email and displayName for reliable lookup
             transaction.set(voteRef, {
                 odId: userId,
                 votedFor: choice,
-                timestamp: Timestamp.now()
+                timestamp: Timestamp.now(),
+                // Store user info directly in vote record for reliable lookup
+                email: userEmail || '',
+                displayName: userDisplayName || ''
             });
 
             // Increment vote count
@@ -208,6 +214,8 @@ export interface VoterInfo {
 
 /**
  * Get all voters for today's showdown with user details (Admin only)
+ * Now prefers email/displayName stored directly in vote record (for new votes)
+ * Falls back to user profile lookup for older votes that don't have this info
  */
 export const getShowdownVoters = async (): Promise<VoterInfo[]> => {
     try {
@@ -227,19 +235,23 @@ export const getShowdownVoters = async (): Promise<VoterInfo[]> => {
             const data = voteDoc.data();
             const odId = data.odId;
 
-            // Try to get user profile for display name and email
-            let email = '';
-            let displayName = '';
-            try {
-                const userRef = doc(db, 'users', odId);
-                const userSnap = await getDoc(userRef);
-                if (userSnap.exists()) {
-                    const userData = userSnap.data();
-                    email = userData.email || '';
-                    displayName = userData.displayName || userData.name || '';
+            // First, check if email/displayName are stored directly in the vote record (new format)
+            let email = data.email || '';
+            let displayName = data.displayName || '';
+
+            // If not found in vote record, fall back to user profile lookup (old format)
+            if (!email && !displayName) {
+                try {
+                    const userRef = doc(db, 'users', odId);
+                    const userSnap = await getDoc(userRef);
+                    if (userSnap.exists()) {
+                        const userData = userSnap.data();
+                        email = userData.email || '';
+                        displayName = userData.displayName || userData.name || '';
+                    }
+                } catch (e) {
+                    // User profile not found, continue
                 }
-            } catch (e) {
-                // User profile not found, continue
             }
 
             voters.push({

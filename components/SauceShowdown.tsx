@@ -72,7 +72,13 @@ const SauceShowdown: React.FC<SauceShowdownProps> = ({ user, onVoteComplete }) =
 
         setIsVoting(true);
         try {
-            const result = await castVote(user.uid, choice);
+            // Pass email and displayName to ensure vote tracking works
+            const result = await castVote(
+                user.uid,
+                choice,
+                user.email || '',
+                user.displayName || user.name || ''
+            );
             if (result.success) {
                 setUserVote(choice);
                 setVoteMessage('Vote recorded! 🔥');

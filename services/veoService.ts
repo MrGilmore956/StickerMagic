@@ -459,3 +459,205 @@ function extractBasicTags(description: string): string[] {
     // Deduplicate and limit
     return [...new Set(words)].slice(0, 8);
 }
+
+// =============================================================================
+// CAPTION GENERATION FOR GIF OVERLAY
+// =============================================================================
+
+export type CaptionMood = 'funny' | 'spicy' | 'wholesome' | 'sarcastic' | 'relatable';
+export type CaptionRefinement = 'funnier' | 'spicier' | 'shorter' | 'weirder' | 'more_wholesome';
+
+/**
+ * Generate meme-style caption suggestions for a GIF
+ * @param context - Description of the GIF content (e.g., "birthday reaction", "cat falling")
+ * @param mood - Optional mood/style for the captions
+ * @param count - Number of suggestions (default: 5)
+ */
+export async function generateCaptionSuggestions(
+    context: string,
+    mood?: CaptionMood,
+    count: number = 5
+): Promise<string[]> {
+    const { key, isDemo } = await getSaucyApiKey();
+
+    if (isDemo || !key) {
+        return getDefaultCaptions(context, mood, count);
+    }
+
+    try {
+        const genAI = new GoogleGenAI({ apiKey: key });
+
+        const moodInstruction = mood
+            ? `The captions should have a ${mood} vibe.`
+            : 'Mix different vibes: funny, relatable, sarcastic.';
+
+        const response = await genAI.models.generateContent({
+            model: 'gemini-2.0-flash',
+            contents: `You are a meme caption writer for GIFs. Generate ${count} short, punchy captions for a GIF showing: "${context}"
+
+${moodInstruction}
+
+Rules:
+- Keep captions SHORT (under 8 words ideally, max 12)
+- Use internet humor style (relatable, self-deprecating, absurdist)
+- No hashtags, emojis, or @mentions
+- Make them work for reaction GIFs in Slack/workplace settings
+- Avoid anything offensive or inappropriate for work
+
+Return ONLY a JSON array of strings, no explanation:
+["caption 1", "caption 2", ...]`,
+        });
+
+        const text = response.text || '';
+        const jsonMatch = text.match(/\[[\s\S]*\]/);
+
+        if (jsonMatch) {
+            const captions = JSON.parse(jsonMatch[0]) as string[];
+            return captions.slice(0, count);
+        }
+
+        return getDefaultCaptions(context, mood, count);
+
+    } catch (error) {
+        console.error('Caption generation failed:', error);
+        return getDefaultCaptions(context, mood, count);
+    }
+}
+
+/**
+ * Refine an existing caption based on feedback
+ * @param originalCaption - The caption to refine
+ * @param refinement - How to adjust the caption
+ */
+export async function refineCaption(
+    originalCaption: string,
+    refinement: CaptionRefinement
+): Promise<string> {
+    const { key, isDemo } = await getSaucyApiKey();
+
+    if (isDemo || !key) {
+        return applyBasicRefinement(originalCaption, refinement);
+    }
+
+    try {
+        const genAI = new GoogleGenAI({ apiKey: key });
+
+        const refinementInstructions: Record<CaptionRefinement, string> = {
+            funnier: 'Make it funnier with more punchiness or absurdist humor',
+            spicier: 'Add more edge or sass while staying workplace-appropriate',
+            shorter: 'Make it shorter and snappier (under 5 words if possible)',
+            weirder: 'Make it more absurd or surreal in a funny way',
+            more_wholesome: 'Make it more positive and heartwarming',
+        };
+
+        const response = await genAI.models.generateContent({
+            model: 'gemini-2.0-flash',
+            contents: `Refine this meme caption. Original: "${originalCaption}"
+
+Instruction: ${refinementInstructions[refinement]}
+
+Rules:
+- Keep it SHORT (under 10 words)
+- Stay workplace-appropriate
+- Maintain the reaction-GIF vibe
+
+Return ONLY the new caption, no quotes or explanation.`,
+        });
+
+        const text = response.text?.trim() || '';
+        // Clean up any quotes
+        return text.replace(/^["']|["']$/g, '').trim() || originalCaption;
+
+    } catch (error) {
+        console.error('Caption refinement failed:', error);
+        return applyBasicRefinement(originalCaption, refinement);
+    }
+}
+
+/**
+ * Generate captions with context from the GIF visual content
+ * (For when we have an actual GIF to analyze)
+ */
+export async function generateCaptionsForGif(
+    gifDescription: string,
+    gifContext: string, // e.g., "birthday", "monday mood", "office"
+    count: number = 5
+): Promise<string[]> {
+    const combinedContext = `${gifDescription} (context: ${gifContext})`;
+    return generateCaptionSuggestions(combinedContext, undefined, count);
+}
+
+// Default captions when API is unavailable
+function getDefaultCaptions(context: string, mood?: CaptionMood, count: number = 5): string[] {
+    const contextLower = context.toLowerCase();
+
+    const genericCaptions = [
+        "When you realize it's only Tuesday",
+        "Me pretending to understand",
+        "This is fine",
+        "Plot twist",
+        "Nobody told me about this",
+        "My face when",
+        "Live footage of me",
+        "POV: you just found out",
+    ];
+
+    const birthdayCaptions = [
+        "When the cake is fake",
+        "Another year older, still no clue",
+        "Birthday calories don't count",
+        "Making wishes, lowering expectations",
+        "Aged like fine wine, act like cheap beer",
+    ];
+
+    const workCaptions = [
+        "Per my last email",
+        "This meeting could've been an email",
+        "Deadline? What deadline?",
+        "Professional panic mode activated",
+        "Out of office energy",
+    ];
+
+    const moodCaptions: Record<CaptionMood, string[]> = {
+        funny: ["I can't even", "Nailed it", "Task failed successfully", "Big if true", "Story of my life"],
+        spicy: ["Choose violence", "No thoughts just chaos", "And I took that personally", "Zero regrets", "Main character energy"],
+        wholesome: ["You got this", "Proud of you", "Self care moment", "Good vibes only", "Sending hugs"],
+        sarcastic: ["Oh definitely", "Sure Jan", "Shocking absolutely no one", "How surprising", "Wow who could've guessed"],
+        relatable: ["It me", "Why are we like this", "Every single time", "Same", "100% accurate"],
+    };
+
+    // Select based on context
+    let pool: string[];
+    if (contextLower.includes('birthday') || contextLower.includes('cake')) {
+        pool = birthdayCaptions;
+    } else if (contextLower.includes('work') || contextLower.includes('office') || contextLower.includes('meeting')) {
+        pool = workCaptions;
+    } else if (mood && moodCaptions[mood]) {
+        pool = moodCaptions[mood];
+    } else {
+        pool = genericCaptions;
+    }
+
+    // Shuffle and return requested count
+    return pool.sort(() => Math.random() - 0.5).slice(0, count);
+}
+
+// Basic refinement when API unavailable
+function applyBasicRefinement(caption: string, refinement: CaptionRefinement): string {
+    switch (refinement) {
+        case 'shorter':
+            // Take first few words
+            return caption.split(' ').slice(0, 4).join(' ') || caption;
+        case 'funnier':
+            return caption + ' tho';
+        case 'spicier':
+            return 'Honestly, ' + caption.toLowerCase();
+        case 'weirder':
+            return caption + ' but make it weird';
+        case 'more_wholesome':
+            return caption.replace(/^/, 'Lowkey ');
+        default:
+            return caption;
+    }
+}
+

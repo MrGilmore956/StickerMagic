@@ -25,9 +25,64 @@ let currentUser: User | null = null;
 
 /**
  * Initialize auth state listener
+ * Also checks for demo user in localStorage for bypassing Firebase auth
  */
 export const initAuthListener = (callback: (user: User | null) => void) => {
+    // First, check for demo user in localStorage
+    const checkDemoUser = () => {
+        const demoUserData = localStorage.getItem('saucy_demo_user');
+        if (demoUserData) {
+            try {
+                const parsedData = JSON.parse(demoUserData);
+                // Create a mock User object for the demo user
+                const demoUser = {
+                    uid: parsedData.uid,
+                    email: parsedData.email,
+                    displayName: parsedData.displayName,
+                    emailVerified: true,
+                    isAnonymous: false,
+                    metadata: {},
+                    providerData: [],
+                    refreshToken: '',
+                    tenantId: null,
+                    delete: async () => { },
+                    getIdToken: async () => 'demo-token',
+                    getIdTokenResult: async () => ({ token: 'demo-token', claims: {}, expirationTime: '', authTime: '', issuedAtTime: '', signInProvider: null, signInSecondFactor: null }),
+                    reload: async () => { },
+                    toJSON: () => ({}),
+                    phoneNumber: null,
+                    photoURL: null,
+                    providerId: 'demo'
+                } as unknown as User;
+                currentUser = demoUser;
+                return demoUser;
+            } catch (e) {
+                console.warn('Failed to parse demo user from localStorage:', e);
+                localStorage.removeItem('saucy_demo_user');
+            }
+        }
+        return null;
+    };
+
+    // Check demo user immediately
+    const demoUser = checkDemoUser();
+    if (demoUser) {
+        console.log('Demo user restored from localStorage');
+        // Trigger callback with demo user immediately
+        setTimeout(() => callback(demoUser), 0);
+    }
+
+    // Also listen for Firebase auth changes
     return onAuthStateChanged(auth, (user) => {
+        // If demo user is active and Firebase returns null, keep demo user
+        const demoUserStored = localStorage.getItem('saucy_demo_user');
+        if (!user && demoUserStored) {
+            const demoUser = checkDemoUser();
+            if (demoUser) {
+                callback(demoUser);
+                return;
+            }
+        }
         currentUser = user;
         callback(user);
     });
@@ -48,8 +103,46 @@ export const signInWithGoogle = async (): Promise<User> => {
 
 /**
  * Sign in with Email/Password
+ * Supports a demo mode for admin@saucy.com/admin123 that bypasses Firebase
  */
-export const signInWithEmail = async (email: string, password: string): Promise<{ user: User | null; error: string | null }> => {
+export const signInWithEmail = async (email: string, password: string): Promise<{ user: User | null; error: string | null; isDemo?: boolean }> => {
+    // Demo mode bypass for local testing (when Firebase Email/Password is not enabled)
+    if (email === 'admin@saucy.com' && password === 'admin123') {
+        console.log('Demo admin login activated');
+        // Create a mock user object for demo purposes
+        const demoUser = {
+            uid: 'demo-admin-uid',
+            email: 'admin@saucy.com',
+            displayName: 'Brian Taylor (Demo)',
+            emailVerified: true,
+            isAnonymous: false,
+            metadata: {},
+            providerData: [],
+            refreshToken: '',
+            tenantId: null,
+            delete: async () => { },
+            getIdToken: async () => 'demo-token',
+            getIdTokenResult: async () => ({ token: 'demo-token', claims: {}, expirationTime: '', authTime: '', issuedAtTime: '', signInProvider: null, signInSecondFactor: null }),
+            reload: async () => { },
+            toJSON: () => ({}),
+            phoneNumber: null,
+            photoURL: null,
+            providerId: 'demo'
+        } as unknown as User;
+
+        // Store demo user in localStorage for persistence
+        localStorage.setItem('saucy_demo_user', JSON.stringify({
+            uid: demoUser.uid,
+            email: demoUser.email,
+            displayName: demoUser.displayName
+        }));
+
+        // Update currentUser
+        currentUser = demoUser;
+
+        return { user: demoUser, error: null, isDemo: true };
+    }
+
     try {
         const result = await signInWithEmailAndPassword(auth, email, password);
         return { user: result.user, error: null };
@@ -61,6 +154,7 @@ export const signInWithEmail = async (email: string, password: string): Promise<
         if (error.code === 'auth/wrong-password') errorMessage = 'Incorrect password.';
         if (error.code === 'auth/invalid-email') errorMessage = 'Invalid email address.';
         if (error.code === 'auth/invalid-credential') errorMessage = 'Invalid email or password.';
+        if (error.code === 'auth/operation-not-allowed') errorMessage = 'Email/Password sign-in is not enabled.';
         return { user: null, error: errorMessage };
     }
 };

@@ -41,6 +41,7 @@ import { toggleFavorite, isFavorited } from '../services/favoritesService';
 import MemeEditor from '../components/MemeEditor';
 import SauceShowdown from '../components/SauceShowdown';
 import { subscribeToSettings } from '../services/settingsService';
+import { processLandingQuery, ParsedQuery } from '../services/landingService';
 
 type TrendingPeriod = 'today' | 'week' | 'month' | 'allTime';
 type ContentRating = 'all' | 'pg' | 'pg13' | 'r' | 'unhinged';
@@ -409,6 +410,7 @@ export default function HomePage() {
     const subcategoriesRef = useRef<HTMLDivElement>(null);
     const [aiSuggestedSubs, setAiSuggestedSubs] = useState<string[]>([]);
     const [loadingAiSuggestions, setLoadingAiSuggestions] = useState(false);
+    const [smartQueryInfo, setSmartQueryInfo] = useState<ParsedQuery | null>(null);
 
     // Store current query to use for loadMore
     const currentQueryRef = useRef<string>('');
@@ -835,28 +837,55 @@ export default function HomePage() {
         }
     };
 
-    // Load GIFs for a specific category
+    // Load GIFs for a specific category (with smart VS Mode and AI support)
     const loadCategoryGifs = async (category: Category) => {
         setLoading(true);
+        setSmartQueryInfo(null);
         try {
             console.log(`Loading GIFs for category: ${category.name} (${category.searchTerm})`);
-            const klipyItems = await searchKlipy(category.searchTerm, { limit: 48, offset: 0 });
 
-            const items: LibraryGIF[] = klipyItems.map(item => ({
-                id: item.id,
-                url: item.url,
-                thumbnailUrl: item.preview_url,
-                title: item.title || '',
-                tags: item.tags || [],
-                downloads: Math.floor(Math.random() * 5000),
-                status: 'published' as const,
-                createdAt: new Date(),
-            }));
+            // Use smart landing service for Saucy's Pick category to support VS Mode and AI
+            if (category.id === 'saucys-pick') {
+                const result = await processLandingQuery(category.searchTerm, { limit: 48 });
+                setSmartQueryInfo(result.query);
 
-            setGifs(items);
-            setOffset(48);
-            setHasMore(klipyItems.length >= 48);
-            currentQueryRef.current = category.searchTerm;
+                console.log(`Smart Query Mode: ${result.query.type}, Terms: ${result.searchTermsUsed.join(', ')}`);
+
+                const items: LibraryGIF[] = result.items.map(item => ({
+                    id: item.id,
+                    url: item.url,
+                    thumbnailUrl: item.preview_url,
+                    title: item.title || '',
+                    tags: item.tags || [],
+                    downloads: Math.floor(Math.random() * 5000),
+                    status: 'published' as const,
+                    createdAt: new Date(),
+                }));
+
+                setGifs(items);
+                setOffset(48);
+                setHasMore(result.items.length >= 48);
+                currentQueryRef.current = category.searchTerm;
+            } else {
+                // Standard category search
+                const klipyItems = await searchKlipy(category.searchTerm, { limit: 48, offset: 0 });
+
+                const items: LibraryGIF[] = klipyItems.map(item => ({
+                    id: item.id,
+                    url: item.url,
+                    thumbnailUrl: item.preview_url,
+                    title: item.title || '',
+                    tags: item.tags || [],
+                    downloads: Math.floor(Math.random() * 5000),
+                    status: 'published' as const,
+                    createdAt: new Date(),
+                }));
+
+                setGifs(items);
+                setOffset(48);
+                setHasMore(klipyItems.length >= 48);
+                currentQueryRef.current = category.searchTerm;
+            }
         } catch (error) {
             console.error('Failed to load category GIFs:', error);
             setGifs([]);
@@ -1416,6 +1445,39 @@ export default function HomePage() {
                         <Search className="w-4 h-4" />
                         <span>Searching for "{debouncedSearch}"</span>
                         {isSearching && <Loader2 className="w-4 h-4 animate-spin ml-2" />}
+                    </div>
+                )}
+
+                {/* Smart Query Mode Indicator - VS Mode or AI Mode */}
+                {!debouncedSearch && smartQueryInfo && smartQueryInfo.type !== 'single' && (
+                    <div className="mb-6 flex items-center gap-3 py-3 px-4 rounded-2xl bg-gradient-to-r from-purple-500/10 via-transparent to-purple-500/10 border border-purple-500/20">
+                        {smartQueryInfo.type === 'vs' ? (
+                            <>
+                                <span className="px-2.5 py-1 rounded-lg bg-purple-500/20 text-purple-400 font-bold text-xs tracking-wide">VS MODE</span>
+                                <div className="flex items-center gap-2 text-sm">
+                                    <span className="px-3 py-1.5 rounded-xl bg-red-500/20 text-red-400 font-semibold border border-red-500/30">
+                                        {smartQueryInfo.terms[0]}
+                                    </span>
+                                    <span className="text-purple-400 font-bold text-xs">⚡</span>
+                                    <span className="px-3 py-1.5 rounded-xl bg-blue-500/20 text-blue-400 font-semibold border border-blue-500/30">
+                                        {smartQueryInfo.terms[1]}
+                                    </span>
+                                </div>
+                                <span className="text-xs text-slate-500 ml-2">Interleaved results from both topics</span>
+                            </>
+                        ) : (
+                            <>
+                                <span className="px-2.5 py-1 rounded-lg bg-green-500/20 text-green-400 font-bold text-xs tracking-wide">AI MODE</span>
+                                <div className="flex flex-wrap items-center gap-2 text-sm">
+                                    {smartQueryInfo.terms.map((term, i) => (
+                                        <span key={i} className="px-3 py-1.5 rounded-xl bg-white/10 text-white font-medium border border-white/20">
+                                            {term}
+                                        </span>
+                                    ))}
+                                </div>
+                                <span className="text-xs text-slate-500 ml-2">AI-optimized search terms</span>
+                            </>
+                        )}
                     </div>
                 )}
 
